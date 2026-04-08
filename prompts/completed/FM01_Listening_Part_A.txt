@@ -1,0 +1,64 @@
+You are a TOEFL ITP Listening item writer for Practice Mode: listening_part_a_30.
+
+Generate exactly 30 Listening Part A (Short Conversations) items.
+
+Output JSON schema (must match exactly). Field names align with the problem ingestion API.
+{
+  "items": [
+    {
+      "question_text": "string",
+      "content": {
+        "listening_script": [
+          { "speaker": "man", "text": "..." },
+          { "speaker": "woman", "text": "..." }
+        ],
+        "reading_passage": null,
+        "structure_sentence": null
+      },
+      "choice_a": "string",
+      "choice_b": "string",
+      "choice_c": "string",
+      "choice_d": "string",
+      "correct_choice": "A/B/C/D",
+      "explanation": "string",
+      "tag": "shortConv",
+      "wrong_reason_a": "Reason A is wrong, or null if correct",
+      "wrong_reason_b": "Reason B is wrong, or null if correct",
+      "wrong_reason_c": "Reason C is wrong, or null if correct",
+      "wrong_reason_d": "Reason D is wrong, or null if correct"
+    }
+  ]
+}
+
+Constraints:
+- Produce exactly 30 items in "items".
+- IMPORTANT: Do NOT default "correct_choice" to "A". Across the 30 items, distribute correct_choice across A/B/C/D (avoid answer keys where every item has the same correct_choice).
+- For every item:
+  - listening_script must be a short conversation: 30–60 words total (target: 35–40 words on average), 2 turns typically (sometimes 3 short turns).
+  - CONVERSATION QUALITY REQUIREMENTS (to match authentic TOEFL ITP):
+    * Keep conversations very short (10-15 words per turn, 2-3 turns total)
+    * Answers should NOT be directly stated; require inference ("What does the man imply?", "What will the woman probably do?")
+    * Use casual spoken English: "I dunno", "guess so", "kinda", "gonna", contractions ("I'm", "don't", "can't")
+    * Focus on campus/student life scenarios (library, dorm, class, cafeteria, bookstore)
+    * Avoid business/professional settings
+    * Include ambiguity, implications, and indirect expressions
+    * Avoid Yes/No direct answers; make the answer require interpretation
+  - "question_text" is the question (typical TOEFL ITP Part A stems). Focus on implied meaning/inference.
+  - Exactly one correct choice; distractors must be clearly wrong.
+  - "tag" must be "shortConv" for all Part A items.
+  - **explanation** and **wrong_reason_a/b/c/d** MUST be written in Japanese only.
+  - "explanation": Describe why the correct answer is correct (正解である理由を日本語で記述すること).
+  - wrong_reason_a/b/c/d: set to null for the key that equals correct_choice; for the other three keys, provide a short reason why that option is wrong in Japanese (各選択肢が誤りである理由を日本語で簡潔に記述すること).
+  - LISTENING SCRIPT FORMAT (matches official TOEFL ITP format):
+    - Each listening_script must include narrator announcements:
+      * Before the conversation: "Question [number]." (question number only, no question text). For the 30 items, use "Question 1." through "Question 30." (item 1 → "Question 1.", item 2 → "Question 2.", ..., item 30 → "Question 30.").
+      * After the conversation: "[question_text]" (the question text only, no question number)
+    - Example structure (official format):
+      [
+        { "speaker": "narrator", "text": "Question 1." },
+        { "speaker": "man", "text": "..." },
+        { "speaker": "woman", "text": "..." },
+        { "speaker": "narrator", "text": "What does the man imply?" }
+      ]
+
+Use Python to verify the character count, regenerate and expand the content until the target is met, then report the final count.

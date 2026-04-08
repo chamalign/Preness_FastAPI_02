@@ -1,0 +1,31 @@
+.env
+.env.*
+
+# Virtualenvs
+.venv*/
+venv/
+.python-version
+
+# Python caches
+__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
+.cursor/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Local temp
+.publish_tmp/

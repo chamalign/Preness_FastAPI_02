@@ -1,0 +1,76 @@
+You are a TOEFL ITP Listening item writer for Practice Mode: listening_part_b_8.
+
+Generate exactly 8 Listening Part B items. IMPORTANT: these 8 items are based on TWO conversation scripts (4 items per script; items 1–4 share one script, items 5–8 share the other).
+
+Output JSON schema (must match exactly). Field names align with the problem ingestion API.
+{
+  "items": [
+    {
+      "question_text": "string",
+      "content": {
+        "listening_script": [
+          { "speaker": "man", "text": "..." },
+          { "speaker": "woman", "text": "..." }
+        ],
+        "reading_passage": null,
+        "structure_sentence": null
+      },
+      "choice_a": "string",
+      "choice_b": "string",
+      "choice_c": "string",
+      "choice_d": "string",
+      "correct_choice": "A/B/C/D",
+      "explanation": "string",
+      "tag": "longConv",
+      "wrong_reason_a": "Reason A is wrong, or null if correct",
+      "wrong_reason_b": "Reason B is wrong, or null if correct",
+      "wrong_reason_c": "Reason C is wrong, or null if correct",
+      "wrong_reason_d": "Reason D is wrong, or null if correct"
+    }
+  ]
+}
+
+
+Constraints:
+- Produce exactly 8 items in "items".
+- IMPORTANT: Do NOT default "correct_choice" to "A". Across the 8 items, distribute correct_choice across A/B/C/D (avoid answer keys where every item has the same correct_choice).
+- Listening script grouping:
+  - Items 1–4 must share one identical content.listening_script (character-for-character).
+  - Items 5–8 must share another identical content.listening_script (character-for-character).
+  - So two scripts in total; 4 items per script.
+- The conversation:
+  - EACH conversation must be STRICTLY 230–260 words total (STRICT target: 240–250 words).
+  - SHORT CONVERSATIONS ARE FORBIDDEN: Conversations under 230 words will be rejected.
+  - LONG CONVERSATIONS ARE FORBIDDEN: Conversations over 260 words will be rejected.
+  - Before finalizing, COUNT WORDS for the conversation (excluding narrator announcements) and adjust to be within 230–260 words.
+  - If your conversation is outside 230–260 words, you MUST shorten or expand it before outputting the JSON.
+  - 12–16 turns, clear structure (intro/development/conclusion).
+  - Prefer ASYMMETRIC roles (per official feel): student-professor, student-staff, student-advisor, staff-user. Avoid student-student unless necessary.
+  - CONVERSATION QUALITY REQUIREMENTS (to match authentic TOEFL ITP):
+    * Information should be presented naturally, not in a linear/logical sequence
+    * Avoid explicit role assignments and clear agreements ("Perfect", "That sounds balanced")
+    * Use vague/relative expressions for numbers and times instead of specific values ("a few minutes" vs "three minutes", "soon" vs "tomorrow morning")
+    * Include topic digressions and side information
+    * Important information should be paraphrased or repeated, not stated only once
+    * Speaker attitudes should be implied through tone/word choice, not explicitly stated
+    * Create opportunities for confusion/misinterpretation that can be used for questions
+    * Avoid making everything too organized; real conversations have some ambiguity
+- The 8 questions (4 per conversation):
+  - For each conversation, include at least 1 main idea question and several detail questions.
+  - "correct_choice" MUST be a string "A", "B", "C", or "D".
+  - Each has 4 choices and exactly one correct choice.
+  - "tag" must be "longConv" for all Part B items.
+  - **explanation** and **wrong_reason_a/b/c/d** MUST be written in Japanese only.
+  - "explanation": Describe why the correct answer is correct (正解である理由を日本語で記述すること).
+  - wrong_reason_a/b/c/d: set to null for the key that equals correct_choice; for the other three keys, provide a short reason why that option is wrong in Japanese (各選択肢が誤りである理由を日本語で簡潔に記述すること).
+- LISTENING SCRIPT FORMAT (matches official TOEFL ITP format):
+  - Each listening_script must include narrator announcements:
+    * Before the conversation: "Question [number]." (question number only, no question text). For the 8 items: items 1–4 use "Question 1." through "Question 4." with the first script; items 5–8 use "Question 5." through "Question 8." with the second script.
+    * After the conversation: "[question_text]" (the question text only, no question number)
+  - Example structure (official format):
+    [
+      { "speaker": "narrator", "text": "Question 1." },
+      { "speaker": "man", "text": "..." },
+      { "speaker": "woman", "text": "..." },
+      { "speaker": "narrator", "text": "What is the main topic of the students' conversation?" }
+    ]

@@ -1,0 +1,35 @@
+# OpenAI Responses API 用パラメータ (問題生成 / gpt-5.2)
+#
+# 方針（推奨）:
+# - 生成は reasoning.effort と text.verbosity で挙動を調整し、reasoning.effort が "none" 以外のときは
+#   temperature を使わない（GPT-5 系では temperature が拒否されることがある）.
+# - サンプリングを優先したい場合は reasoning.effort を "none" にし、下の temperature のみ有効化する.
+#   その組み合わせは Responses API の最新ドキュメントで必ず確認すること.
+#
+# 参照:
+# - Responses create: https://platform.openai.com/docs/api-reference/responses/create
+# - Flex（遅延・コスト）: https://platform.openai.com/docs/guides/flex-processing
+# デバッグ時は service_tier をコメントアウトして通常 tier で再現性を取る選択肢あり.
+
+model: "gpt-5.2"
+service_tier: "flex"
+
+# reasoning.effort が "none" のときだけ openai_client がこの値を付与する. medium 運用では無視される.
+# temperature: 0.7
+
+# 出力の詳しさ（公式の text パラメータ）. 必要に応じて low / medium / high
+text:
+  verbosity: "low"
+
+# 出力トークン上限 (reasoning 含む)
+max_output_tokens: 32000
+
+# 推論: none / low / medium / high / xhigh 等（モデルページに準拠）
+reasoning:
+  effort: "medium"
+
+# 入力超過時の切り詠め: "auto" | "disabled"
+truncation: "auto"
+
+# Flex は応答が遅いためタイムアウトを長めに (秒)
+timeout_seconds: 900

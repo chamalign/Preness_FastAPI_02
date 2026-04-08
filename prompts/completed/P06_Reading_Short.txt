@@ -1,0 +1,502 @@
+You are an item writer for the ETS-style TOEFL ITP Reading Section.
+Using the assumptions below, output questions that are as close as possible to TOEFL ITP Reading Section style.
+The output for this run must be as follows.
+
+- One passage, ten questions, answer choices, answer key, and explanations.
+
+Output format: Return a single JSON object only. No markdown fences. No explanations outside the JSON.
+Field names must match the problem ingestion API. Produce exactly one passage and 10 questions.
+
+```json
+{
+  "passages": [
+    {
+      "passage": "Full passage text (all paragraphs joined as a single string, separated by \\n\\n).",
+      "questions": [
+        {
+          "question_text": "What is the main topic of the passage?",
+          "choice_a": "string",
+          "choice_b": "string",
+          "choice_c": "string",
+          "choice_d": "string",
+          "correct_choice": "A/B/C/D",
+          "explanation": "string",
+          "tag": "vocab/inference/fact",
+          "wrong_reason_a": "Reason A is wrong, or null if correct",
+          "wrong_reason_b": "Reason B is wrong, or null if correct",
+          "wrong_reason_c": "Reason C is wrong, or null if correct",
+          "wrong_reason_d": "Reason D is wrong, or null if correct"
+        }
+      ]
+    }
+  ]
+}
+```
+The single element in `passages` must have exactly 10 question objects (same schema as above). Total: 1 passage, 10 questions.
+
+Output constraints:
+- `passages`: an array of exactly 1 element. That element has:
+  - The single passage must be SHORT (see Premise 3).
+  - `passage`: one string containing all paragraphs of that passage (paragraphs separated by \n\n).
+  - `questions`: exactly 10 items for that passage, ordered by appearance of answer/hint in the passage. The position of the answer/hint for question N must NEVER appear earlier in the passage than the answer/hint for question N-1 (exception: Q1 may use the whole passage; the final question may use the last part of the passage).
+- `correct_choice`: must be exactly one of "A", "B", "C", or "D".
+- **explanation** and **wrong_reason_*** MUST be written in Japanese only.
+- For Vocabulary and Usage (pronoun/reference) questions: when stating where the referent or word appears, use "line ○" or "○文目" (e.g. line 5, 3文目). Do NOT use "In passage 〇" or "paragraph 〇".
+- `explanation`: Describe why the correct answer is correct (正解である理由を日本語で記述すること).
+- `wrong_reason_*`: set to null for the key matching correct_choice; provide a short reason for each of the other three in Japanese (各選択肢が誤りである理由を日本語で簡潔に記述すること).
+- `tag`: one of mainIdea / fact / inference / vocab / usage / not / rhetorical / organization / location / viewpointTone (align with question type).
+- Do NOT default correct_choice to "A". Distribute across A/B/C/D throughout the 10 questions.
+If any rule marked as required is not followed, it is a fatal error. If there is even one specification violation, the output is invalid as a test.
+
+(Premise 1: Question Design)
+#1 Test Format
+- 1 passage, 10 questions.
+- Average question lengths and ranges by type are as follows.
+- Main Idea: average 8-10 words, range 6-14 words
+- Factual: average 10-14 words, range 8-20 words
+- Inference: average 12-16 words, range 10-22 words
+- Vocabulary: average 12-16 words, range 10-22 words
+- Usage: average 9-13 words, range 8-18 words
+- NOT: average 10-14 words, range 8-18 words
+- Rhetorical: average 12-18 words, range 10-24 words
+- Organization: average 14-20 words, range 14-20 words
+- Location: average 10-14 words, range 8-18 words
+- Viewpoint/Tone: average 12-18 words, range 10-22 words
+
+#1 Question Types (Only the following 10 types)
+Main Idea
+Factual
+Inference
+Vocabulary
+Usage
+NOT
+Rhetorical
+Organization
+Location
+Viewpoint/Tone
+
+#2 Overall Question-Type Ratio
+Main Idea: 10.0%
+Factual: 20.0%
+Inference: 18%
+Vocabulary: 27.0%
+Usage: 7.0%
+NOT: 7.0%
+Rhetorical: 6.0%
+Organization: 3.0%
+Location: 1.0%
+Viewpoint/Tone: 1.0%
+*100% = 10 questions
+
+#3 Number of each question type per passage (fixed composition)
+Use the following exact allocation per passage. Do not deviate.
+
+Main Idea: 1 (must be question 1)
+Factual: 2
+Inference: 2 (one of these must be the final question)
+Vocabulary: 3
+Usage: 1
+NOT: 1
+Rhetorical: 1
+Organization: 0
+Location: 0
+Viewpoint/Tone: 0
+Total: 10 questions
+
+*Order rule: The first question is always Main Idea. The last question must be Inference (under this fixed composition). Questions must follow the order in which the answer or key information appears in the passage. The answer/hint for question N must NEVER appear earlier in the passage than the answer/hint for question N-1.
+*Except for the first and last question, you may vary the sequence of question types in the middle, but the order of questions MUST still follow passage order. Do not place a question whose answer is in an earlier paragraph after a question whose answer is in a later paragraph.
+
+#4 Question-stem templates by type
+Choose template wording based on passage content to stay as close as possible to TOEFL ITP style.
+
+1) Main Idea
+- What does the passage mainly discuss?
+- What is the main topic of the passage?
+- What is the main point of this passage?
+- What is the main purpose of the passage?
+- What is the author's main point?
+- In the second paragraph, the author mainly discusses ...
+- Which of the following best describes the subject of the passage?
+
+Insert passage-specific content into "...", combine into one question, and end with a question mark.
+
+2) Factual
+- According to the passage, ...
+- According to paragraph X, ...
+- Which of the following is true about ...?
+- Which of the following is mentioned in the passage?
+- The passage states that ...
+- The author indicates that ...
+- What does the passage say about ...?
+
+Insert passage-specific content into "...", combine into one question, and end with a question mark.
+
+3) Inference
+- It can be inferred from the passage that ...
+- It can be concluded from the passage that ...
+- The author implies that ...
+- Which of the following can be inferred about ...?
+- The passage suggests that ...
+- It is most likely that ...
+
+Insert passage-specific content into "...", combine into one question, and end with a question mark.
+
+4) Vocabulary
+- Use line numbers only for location. Official style asks "which line" / "何文目の○○", so do NOT use "in paragraph X" or "in the passage" for the target word location.
+- The word X in line Y is closest in meaning to ...
+- The phrase X in line Y suggests that ...
+- The word X in line Y most nearly means ... (prefer "in line Y"; avoid "as used in the passage" without a line number).
+- The expression X in line Y refers to ...
+
+Never ask about an expression containing more than one word here.
+
+5) Usage
+- Use line numbers only. Do NOT use "in paragraph X" or "In passage 〇". Official style: "何文目の○○について" / "the word in line X".
+- The word they in line X refers to ...
+- The word this / that / it / these in line X refers to ...
+- What does X refer to in line Y?
+- The phrase X in line Y is used to refer to ...
+
+6) NOT
+- Which of the following is NOT mentioned in the passage?
+- All of the following are mentioned EXCEPT ...
+- Which of the following is NOT true according to the passage?
+- Which of the following does the author NOT discuss?
+
+Insert passage-specific content into "...", combine into one question, and end with a question mark.
+
+7) Rhetorical
+- Why does the author mention ...?
+- Why does the author discuss ...?
+- Why does the author refer to ...?
+- The author mentions X in order to ...
+
+Insert passage-specific content into "...", combine into one question, and end with a question mark.
+
+8) Organization
+- The paragraph preceding this passage probably discusses ...
+- The paragraph following this passage will most likely discuss ...
+- How is the passage organized?
+- The author organizes the passage primarily by ...
+
+Insert passage-specific content into "...", combine into one question, and end with a question mark.
+
+9) Location
+- Where in the passage does the author discuss ...?
+- In which paragraph does the author mention ...?
+- Where is X described?
+
+Insert passage-specific content into "...", combine into one question, and end with a question mark.
+
+10) Viewpoint / Tone
+- The tone of the passage could best be described as ...
+- The author's attitude toward ... is best described as ...
+- Which of the following best describes the author's view of ...?
+
+Insert passage-specific content into "...", combine into one question, and end with a question mark.
+
+Additional Rule 1: Question-mark rule
+For the following types, the stem must end with a question mark:
+- Main Idea
+- Factual
+- Inference
+- NOT
+- Rhetorical
+- Organization
+- Location
+- Viewpoint / Tone
+
+Only the following are exceptions:
+- Vocabulary
+- Usage
+
+Additional Rule 2: Construction rule
+Construct each question by combining "template pattern + passage content (proper nouns, concepts, claims, facts, etc.)".
+Vocabulary/Usage do not require this structure.
+If the above additional rules are not fully satisfied, do not output.
+Output only after confirming all are satisfied.
+Do not abstract and rewrite content into independent, detached questions.
+
+#5 Special rules for question order
+Questions must follow the order in which information appears in the passage. The answer or key information for question N must NEVER appear earlier in the passage than the answer for question N-1. Exceptions: (1) The first question (Q1) may require viewing the whole passage. (2) The final question may require the last part of the passage only. All other questions (Q2 through second-to-last) must have their answer/hint position strictly after the previous question's answer/hint position.
+
+For example, if Q3 answer/hint is around line 6 of the passage:
+- Q1 and Q2 answer/hints must appear before line 6.
+- Q4 and later answer/hints must appear at or after line 6.
+Maintain this "question order = passage order" mapping consistently for all questions.
+
+The first question of the passage must be a Main Idea question.
+It should target the central claim of the whole passage or opening paragraph.
+
+The final question of the passage must be one of the following types:
+- Inference
+- Organization
+- Location
+- Viewpoint / Tone
+The final question must require understanding of the whole passage or later part of the passage.
+
+#6 Design requirements by question type
+(Main Idea / Factual / Inference / Vocabulary / Usage / NOT / Rhetorical / Organization / Location / Viewpoint)
+
+1) Main Idea
+Objective: measure ability to integrate the full text into one abstract proposition.
+Design requirements (high precision):
+- Correct option summarizes the function/claim of the whole passage at medium abstraction (30-50%).
+- Do not include proper nouns, numbers, examples, or paragraph-specific details.
+- Focus on what the author does in the passage, not just the topic label.
+Prohibited:
+- Summary of only one specific paragraph
+- Direct paraphrase of the conclusion sentence
+- Option that only states the topic name
+
+2) Factual
+Objective: measure accurate retrieval and recognition of explicit information.
+Design requirements (high precision):
+- Correct option must be explicitly stated in one sentence or adjacent two sentences.
+- Use stems such as according to / states / indicates.
+- Do not include inference, evaluation, or generalization.
+Prohibited:
+- Information synthesized from multiple distant locations
+- Mixed fact + interpretation options
+
+3) Inference
+Objective: measure ability to infer one logical step beyond explicit text.
+Design requirements (high precision):
+- Correct option must be inferred from two or more textual facts.
+- Conclusion should be modest and limited (weak inference).
+- Must not contradict the passage or require extra knowledge.
+Prohibited:
+- Added common/background knowledge
+- Strong absolutes (always / must / never)
+- Causal leap or reversal
+
+4) Vocabulary
+Objective: measure context-based meaning selection.
+Design requirements (high precision):
+- Target words should be B1-B2 polysemous/abstract/figurative expressions.
+- Correct option must naturally replace the word in context.
+- Must require context reading to solve.
+Prohibited:
+- Simple synonym-only test
+- Solvable by first dictionary meaning alone
+
+5) Usage
+Objective: measure accurate processing of referential relations in context.
+Design requirements (high precision):
+- Antecedent should generally be within the previous 1-2 sentences.
+- Must be uniquely identifiable by number, abstract/concrete fit, and logical consistency.
+- In explanation and wrong_reason_*, state the referent location using "line ○" or "○文目". Do NOT use "In passage 〇" or "paragraph 〇".
+Prohibited:
+- Solvable by grammar knowledge alone
+- Ambiguous reference with multiple plausible antecedents
+- Restricting prompts only to they/them/theirs/it, etc.
+
+6) NOT
+Objective: measure global comprehension and elimination strategy.
+Design requirements (high precision):
+- Only the correct option is not present in the passage.
+- All other options must be text-supported (paraphrase allowed).
+- Passage design for NOT: The three mentioned options (distractors) must be supported by one sentence, or two adjacent sentences, in the passage. Do NOT spread them across the whole passage or multiple paragraphs (e.g. avoid comma-separated lists scattered over many lines). The question should be answerable by reading that single sentence or adjacent pair.
+Prohibited:
+- Correct option that is only partially different
+- NOT question requiring inference
+- NOT items where the three mentioned options are scattered across the entire passage (must be localized to 1–2 sentences).
+
+7) Rhetorical
+Objective: measure understanding of rhetorical/logical function.
+Design requirements (high precision):
+- Target functions such as example, contrast, definition, or elaboration.
+- Must be uniquely determined from local context.
+Prohibited:
+- Speculation about author emotions/psychology
+- Confusion with organization-type questions
+
+8) Organization
+Objective: measure meta-level understanding of text structure.
+Design requirements (high precision):
+- Assume clear structural progression (general->specific, cause->effect, etc.).
+- Ask about structure itself, not details.
+Prohibited:
+- Detail-specific options
+- Overlap with main-idea questions
+
+9) Location
+Objective: measure ability to locate where information appears.
+Design requirements (high precision):
+- Target information must be uniquely locatable.
+- Paraphrase should still allow clear location mapping.
+Prohibited:
+- Design that matches multiple locations
+- Ambiguous keywording
+
+10) Viewpoint / Tone
+Objective: measure understanding of evaluative stance in academic prose.
+Design requirements (high precision):
+- Base judgment on tone, hedging, and qualifiers.
+- Correct options include neutral / cautious / objective / mildly critical, etc.
+Prohibited:
+- Strong emotional wording
+- Subjective value judgment
+Do not generate or adopt any item that fails any requirement above.
+
+#7 Underlying item-design philosophy
+- TOEFL ITP Reading measures text-based information processing, not outside knowledge or common sense.
+- Correct answers are always accurate paraphrases of passage content, not identical wording.
+- Each question type targets a distinct reading skill.
+- Distractors should reflect typical errors: misreading, logical leap, and scope misinterpretation.
+- Vocabulary questions measure context-based meaning selection, not raw vocabulary size.
+- Inference questions must accept only modest one-step logical conclusions from the text.
+- Tone/viewpoint questions assess stance (neutral/cautious/objective), not emotion.
+- All questions must be answerable from passage information alone, without cultural/specialized background knowledge.
+- TOEFL ITP Reading is reproducible: ratio, structure, and question form remain consistent.
+
+(Premise 2: Answer-choice design)
+#1 Common rules
+- Each question has 4 options.
+- Correct option is a semantically accurate paraphrase of the passage.
+- Distractors must be grammatically/semantically natural but inconsistent with the passage.
+- Do not create unnatural length gaps between correct and incorrect options.
+
+#2 Option-design requirements by question type
+- Main Idea:
+  - Average option length: 6-12 words
+  - Correct option definition:
+    - Summarize the whole passage at medium abstraction (30-50%).
+    - No concrete examples, numbers, or names.
+    - Reflect author action (explain/describe/compare/argue).
+  - Distractor definitions:
+    - Detail-only type: only one paragraph/example
+    - Topic-label type: only topic name, no claim
+    - Over-abstract type: too broad and non-specific
+    - Distortion type: overstate or understate author stance
+
+- Factual:
+  - Average option length: 7-14 words
+  - Correct option definition:
+    - Explicitly stated in the passage
+    - Verifiable in one sentence or adjacent two sentences
+    - Paraphrase limited to wording/syntax level
+  - Distractor definitions:
+    - One-word difference type (number/degree term)
+    - Mixed-source type (combines two passage points)
+    - Near-negation type (almost/often/usually, etc.)
+    - Out-of-passage type (plausible but unmentioned)
+
+- Inference:
+  - Average option length: 8-16 words
+  - Correct option definition:
+    - Inferable from two or more textual facts
+    - Modest and limited (may/likely)
+    - Does not contradict the passage
+  - Distractor definitions:
+    - Overgeneralization type (always/never)
+    - Added world-knowledge type
+    - Causal reversal type
+    - Under-supported type (insufficient information)
+
+- Vocabulary:
+  - Average option length: 1 word
+  - Correct option definition:
+    - Naturally replaceable in context
+    - Context-dependent meaning
+    - One intended sense of a polysemous/abstract word
+  - Distractor definitions:
+    - Dictionary-first-meaning type
+    - Partial-match type
+    - Part-of-speech mismatch type
+    - Positive/negative polarity reversal type
+  - Adverbs, adjectives, and abstract nouns are valid targets.
+
+- Usage:
+  - Average option length: 2-6 words
+  - Correct option definition:
+    - Exactly one valid referent in context
+    - Number, meaning, and logic all align
+  - Distractor definitions:
+    - Nearby-noun trap
+    - Number-mismatch trap
+    - Abstract/concrete mismatch trap
+    - Grammatically possible but semantically inconsistent trap
+
+- NOT:
+  - Average option length: 7-14 words
+  - Correct option definition:
+    - Not present anywhere in the passage
+    - Still plausible in content
+  - Distractor definitions:
+    - Only one option may be outside the passage
+    - "Partially wrong" correct option is not allowed
+
+- Rhetorical:
+  - Average option length: 7-14 words
+  - Correct option definition:
+    - Captures logical function (example/contrast/definition/elaboration)
+    - Uniquely determined from nearby context
+  - Distractor definitions:
+    - Emotion-guessing type
+    - Content-summary type
+    - Organization-confusion type
+    - Over-attributed-purpose type
+
+- Organization:
+  - Average option length: 6-14 words
+  - Correct option definition:
+    - About structure, not details
+    - General->specific, cause->effect, etc.
+  - Distractor definitions:
+    - Detail-content type
+    - Paragraph-limited type
+    - Main-idea paraphrase type
+    - Timeline-misread type
+
+- Location:
+  - Average option length: 3-8 words
+  - Correct option definition:
+    - Uniquely locatable in the passage
+    - Clear paragraph/position reference
+  - Distractor definitions:
+    - Multi-location ambiguity type
+
+- Viewpoint / Tone:
+  - Average option length: 1-3 words
+  - Correct option definition:
+    - neutral / cautious / objective / mildly critical
+    - Based on tone and qualifiers
+  - Distractor definitions:
+    - Emotion-heavy type
+    - Extreme evaluation type
+    - Exaggerated-claim type
+    - Subjective value-judgment type
+
+Additional notes:
+- Include qualifiers in correct options:
+  - tends to
+  - in some cases
+  - largely
+  - primarily
+  - etc.
+- Distractors should look grammatical and initially plausible, but be misaligned on close reading.
+  - Overscope type
+  - Causal-direction mismatch type
+  - Cross-paragraph synthesis mismatch type
+Use the above to diversify distractor patterns.
+
+(Premise 3: Passage)
+- Topic selection principles
+  - Academic but does not require specialized knowledge
+  - Explainable phenomena in history, science, society, and culture
+  - Not aimed at evaluation, advocacy, or controversy
+  - Excluded topics: current events, emotional debates, ethical/political claims
+Academic topics that do not require specialized knowledge
+
+2. Passage length (short only)
+- Generate exactly one SHORT passage.
+- Short passage: approximately 3 paragraphs; a single coherent topic with a clear progression (e.g. one historical or explanatory thread, from origin to development to impact).
+
+3. Structural design
+Paragraph 1: introduce topic and direction (do not state the conclusion).
+Middle paragraph(s):
+- Include definition, classification, causality, and comparison.
+- Highest information density should be here.
+- Primary source area for Vocabulary / Factual / NOT questions.
+- For NOT questions: write the three mentioned options' support in one sentence or two adjacent sentences; do not spread them across multiple paragraphs.

@@ -1,5 +1,4 @@
-from fastapi import Depends, Header, status
-from fastapi.responses import JSONResponse
+from fastapi import Depends, Header, HTTPException, status
 
 from app.core.config import get_settings
 
@@ -24,10 +23,10 @@ async def verify_api_key(
     """
     token = _get_bearer_or_x_api_key(authorization, x_api_key)
     if not token or token != settings.content_source_api_key:
-        # 設計書準拠: 401 は { "status": "error", "errors": ["Unauthorized"] } を返す
-        raise JSONResponse(
+        # 設計書準拠: 401 は detail 内に { "status": "error", "errors": ["Unauthorized"] }
+        raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            content={"status": "error", "errors": ["Unauthorized"]},
+            detail={"status": "error", "errors": ["Unauthorized"]},
         )
 
 
@@ -44,8 +43,8 @@ async def verify_analysis_api_key(
     """
     token = _get_bearer_or_x_api_key(authorization, x_api_key)
     if not token or token != settings.analysis_api_key:
-        raise JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            content={"status": "error", "errors": ["Unauthorized"]},
+            detail={"status": "error", "errors": ["Unauthorized"]},
         )
 

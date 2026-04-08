@@ -1,0 +1,39 @@
+output_format: "Riff24Khz16BitMonoPcm"
+
+voices:
+  narrator:
+    name: "en-US-DavisNeural"
+    rate: "0.9"
+    pitch: "+7.5%"
+    style: "general"
+  man:
+    name: "en-US-GuyNeural"
+    rate: "1.0"
+    pitch: "+0.0%"
+    style: "friendly"
+  woman:
+    name: "en-US-JennyNeural"
+    rate: "1.0"
+    pitch: "+3.5%"
+    style: "chat"
+
+break_rules:
+  on_question_contains: "Question"
+  narrator_question_break: "1500ms"
+  speaker_breaks:
+    man: "200ms"
+    woman: "200ms"
+    default: "1000ms"
+  break_speaker_default_seconds: 10.0
+
+# 本文と設問を別ファイルにするか
+split_passage_questions: true
+# 同一本文を1ブロックとして重複合成しない
+deduplicate_passage_blocks: true
+# 本文に含める話者
+passage_speakers: ["man", "woman"]
+# 設問として扱う話者
+question_speaker: "narrator"
+# 設問の取り方: 最後の narrator turn のみ
+question_turn_rule: "last_narrator"
+

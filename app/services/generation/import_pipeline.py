@@ -9,6 +9,10 @@ from app.schemas.mocks import MockCreate
 from app.services.exercise_service import create_exercise_from_payload
 from app.services.mock_service import create_mock_from_payload
 from app.services.rails_client import post_exercise_to_rails, post_mock_to_rails
+from app.services.rails_payload_normalize import (
+    normalize_exercise_payload_for_rails,
+    normalize_mock_payload_for_rails,
+)
 from app.services.generation.audio_upload import build_audio_url_map
 from app.services.generation.payload_builder import build_exercise_payload, build_mock_payload
 
@@ -49,10 +53,12 @@ def process_mock_from_full_parts(
     payload = build_mock_payload(
         full_parts, title, audio_url_map, block_starts_per_part=block_starts_per_part
     )
+    # Rails 向け tag / correct_choice を検証・正規化（失敗時は DB 保存前に落とす）
+    rails_payload = normalize_mock_payload_for_rails(payload)
     mock_create = MockCreate.model_validate(payload)
 
     mock_id = create_mock_from_payload(mock_create)
-    post_mock_to_rails(payload)
+    post_mock_to_rails(rails_payload)
     return {"mock_id": mock_id}
 
 
@@ -96,9 +102,10 @@ def process_practice_from_part_data(
     payload = build_exercise_payload(
         part_type, part_data, audio_url_map, block_starts_per_part=block_starts_per_part
     )
+    rails_payload = normalize_exercise_payload_for_rails(payload)
     exercise_create = ExerciseCreate.model_validate(payload)
 
     exercise_ids = create_exercise_from_payload(exercise_create)
-    post_exercise_to_rails(payload)
+    post_exercise_to_rails(rails_payload)
     exercise_id = exercise_ids[0] if exercise_ids else None
     return {"exercise_ids": exercise_ids, "exercise_id": exercise_id}

@@ -38,8 +38,11 @@ def load_json_txt(path: Path) -> Dict[str, Any]:
 
     期待: すでに JSON 形式（null, [] , {}）になっていること。
     """
-    # まれに UTF-8 BOM 付き .txt があるため utf-8-sig で吸収する
-    raw = path.read_text(encoding="utf-8-sig").strip()
+    # UTF-8 BOM は utf-8-sig で除去. 不正バイト列は strict で検知（� 混入を防ぐ）
+    try:
+        raw = path.read_text(encoding="utf-8-sig", errors="strict").strip()
+    except UnicodeError as e:
+        raise ValueError(f"Invalid UTF-8 in file {path}: {e}") from e
     sanitized = _sanitize_newlines_in_json_strings(raw)
 
     try:

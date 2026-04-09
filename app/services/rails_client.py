@@ -11,6 +11,26 @@ from app.core.config import get_settings
 logger = logging.getLogger(__name__)
 
 
+class RailsPostError(ValueError):
+    """Rails への POST が失敗したときに投げる."""
+
+
+def _raise_for_status(response: httpx.Response, endpoint: str) -> None:
+    try:
+        response.raise_for_status()
+    except httpx.HTTPStatusError as e:
+        body = e.response.text[:800] if e.response.text else ""
+        logger.warning(
+            "Rails %s failed: status=%s body=%s",
+            endpoint,
+            e.response.status_code,
+            body,
+        )
+        raise RailsPostError(
+            f"Rails {endpoint} failed: status={e.response.status_code} body={body}"
+        ) from e
+
+
 def _get_headers() -> Dict[str, str]:
     settings = get_settings()
     token = settings.rails_api_key or settings.content_source_api_key
@@ -30,19 +50,15 @@ def post_mock_to_rails(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     try:
         with httpx.Client(timeout=30.0) as client:
             response = client.post(url, json=payload, headers=_get_headers())
-            response.raise_for_status()
+            _raise_for_status(response, "POST /api/v1/mocks")
             result = response.json()
             logger.info("Rails mock registered: %s", result)
             return result
-    except httpx.HTTPStatusError as e:
-        logger.warning(
-            "Rails POST /api/v1/mocks failed: status=%s body=%s",
-            e.response.status_code,
-            e.response.text[:500],
-        )
+    except RailsPostError:
+        raise
     except Exception as e:
         logger.warning("Rails POST /api/v1/mocks error: %s", e)
-    return None
+        raise RailsPostError(f"Rails POST /api/v1/mocks error: {e}") from e
 
 
 def post_exercise_to_rails(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -55,16 +71,12 @@ def post_exercise_to_rails(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     try:
         with httpx.Client(timeout=30.0) as client:
             response = client.post(url, json=payload, headers=_get_headers())
-            response.raise_for_status()
+            _raise_for_status(response, "POST /api/v1/exercises")
             result = response.json()
             logger.info("Rails exercise registered: %s", result)
             return result
-    except httpx.HTTPStatusError as e:
-        logger.warning(
-            "Rails POST /api/v1/exercises failed: status=%s body=%s",
-            e.response.status_code,
-            e.response.text[:500],
-        )
+    except RailsPostError:
+        raise
     except Exception as e:
         logger.warning("Rails POST /api/v1/exercises error: %s", e)
-    return None
+        raise RailsPostError(f"Rails POST /api/v1/exercises error: {e}") from e

@@ -18,6 +18,7 @@ def _listening_item() -> dict:
         "choice_c": "c",
         "choice_d": "d",
         "correct_choice": "a",
+        "tag": "fact",
         "content": {"listening_script": [{"speaker": "M", "text": "Hi"}]},
     }
 
@@ -32,6 +33,7 @@ def _grammar_part() -> dict:
                 "choice_c": "c",
                 "choice_d": "d",
                 "correct_choice": "a",
+                "tag": "fact",
             }
         ]
     }
@@ -50,6 +52,7 @@ def _reading() -> dict:
                         "choice_c": "c",
                         "choice_d": "d",
                         "correct_choice": "a",
+                        "tag": "fact",
                     }
                 ],
             }

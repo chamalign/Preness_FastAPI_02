@@ -13,8 +13,9 @@ logger = logging.getLogger(__name__)
 
 def _get_headers() -> Dict[str, str]:
     settings = get_settings()
+    token = settings.rails_api_key or settings.content_source_api_key
     return {
-        "Authorization": f"Bearer {settings.content_source_api_key}",
+        "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
 

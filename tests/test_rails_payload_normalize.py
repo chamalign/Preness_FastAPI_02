@@ -84,8 +84,48 @@ def test_normalize_rejects_unknown_tag() -> None:
             }
         ],
     }
-    with pytest.raises(ValueError, match="tag not allowed"):
-        normalize_mock_payload_for_rails(payload)
+    out = normalize_mock_payload_for_rails(payload)
+    q = out["sections"][0]["parts"][0]["question_sets"][0]["questions"][0]
+    # mainIdea は inference に寄せる
+    assert q["tag"] == "inference"
+
+
+def test_normalize_fallbacks_unknown_tag_to_fact() -> None:
+    payload = {
+        "title": "T",
+        "sections": [
+            {
+                "section_type": "listening",
+                "display_order": 1,
+                "parts": [
+                    {
+                        "part_type": "part_a",
+                        "display_order": 1,
+                        "question_sets": [
+                            {
+                                "display_order": 1,
+                                "questions": [
+                                    {
+                                        "display_order": 1,
+                                        "question_text": "Q",
+                                        "choice_a": "a",
+                                        "choice_b": "b",
+                                        "choice_c": "c",
+                                        "choice_d": "d",
+                                        "correct_choice": "a",
+                                        "tag": "completely_unknown_tag",
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ],
+            }
+        ],
+    }
+    out = normalize_mock_payload_for_rails(payload)
+    q = out["sections"][0]["parts"][0]["question_sets"][0]["questions"][0]
+    assert q["tag"] == "fact"
 
 
 def test_normalize_exercise_payload() -> None:

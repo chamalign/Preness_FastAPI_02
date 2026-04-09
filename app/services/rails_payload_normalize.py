@@ -9,6 +9,7 @@ Rails API (hinatahoriba/Preness) の Question バリデーションに合わせ�
 from __future__ import annotations
 
 import copy
+import logging
 import re
 from typing import Any, Dict
 
@@ -27,6 +28,22 @@ RAILS_QUESTION_TAGS: frozenset[str] = frozenset(
         "fact",
     }
 )
+
+logger = logging.getLogger(__name__)
+
+# 旧tag/揺れを Rails の許可 tag に寄せる
+#
+# 例:
+# - reading の mainIdea / rhetorical / not など
+# - usage / usage系
+RAILS_TAG_ALIASES: dict[str, str] = {
+    "mainIdea": "inference",
+    "rhetorical": "inference",
+    "not": "fact",
+    "usage": "vocab",
+}
+
+RAILS_TAG_FALLBACK = "fact"
 
 _REPLACEMENT_CHAR = "\ufffd"
 
@@ -59,12 +76,21 @@ def _normalize_tag_rails(value: Any, ctx: str) -> str:
     if not s:
         raise ValueError(f"tag is required for Rails ({ctx})")
     _reject_replacement_char(s, ctx)
-    if s not in RAILS_QUESTION_TAGS:
-        raise ValueError(
-            f"tag not allowed for Rails ({ctx}): {s!r}. "
-            f"Allowed: {sorted(RAILS_QUESTION_TAGS)}"
-        )
-    return s
+
+    if s in RAILS_QUESTION_TAGS:
+        return s
+
+    alias = RAILS_TAG_ALIASES.get(s)
+    if alias is not None:
+        if alias not in RAILS_QUESTION_TAGS:
+            raise ValueError(f"internal tag alias is invalid: {s!r} -> {alias!r}")
+        return alias
+
+    # それ以外はフォールバックしつつ観測できるように warning を残す
+    if RAILS_TAG_FALLBACK not in RAILS_QUESTION_TAGS:
+        raise ValueError(f"internal tag fallback is invalid: {RAILS_TAG_FALLBACK!r}")
+    logger.warning("Unknown tag for Rails; falling back: tag=%r ctx=%s", s, ctx)
+    return RAILS_TAG_FALLBACK
 
 
 def _patch_question_dict(q: Dict[str, Any], ctx: str) -> None:

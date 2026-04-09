@@ -54,6 +54,9 @@ class Settings(BaseSettings):
     rails_api_base_url: Optional[str] = Field(
         default=None, validation_alias="RAILS_API_BASE_URL"
     )
+    rails_api_key: Optional[str] = Field(
+        default=None, validation_alias="RAILS_API_KEY"
+    )
 
     @model_validator(mode="after")
     def _api_keys_required_unless_dry_run(self) -> "Settings":

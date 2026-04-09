@@ -242,7 +242,7 @@ tag_accuracy のキー:
 
 def generate_report(payload: Dict[str, Any]) -> Dict[str, Any]:
     """
-    payload: attempt_id, exam_type, student_name, exam_date, answers, items
+    payload: attempt_id, exam_type, answers, items
     各 item に tag (必須) と section, correct_choice が必要.
     """
     answers_list = payload.get("answers") or []
@@ -273,8 +273,6 @@ def generate_report(payload: Dict[str, Any]) -> Dict[str, Any]:
     report_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     meta = {
         "title": "TOEFL ITP®︎ 模試分析レポート",
-        "student_name": payload.get("student_name"),
-        "exam_date": payload.get("exam_date"),
         "exam_type": payload.get("exam_type", "full"),
         "report_date": report_date,
     }

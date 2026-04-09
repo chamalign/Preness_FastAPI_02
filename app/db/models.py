@@ -106,6 +106,7 @@ class MockQuestionSet(Base):
     display_order: Mapped[int] = mapped_column(Integer, nullable=False)
     passage: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     audio_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
+    scripts: Mapped[Optional[List[Any]]] = mapped_column(JSON, nullable=True)
     part: Mapped["MockPart"] = relationship("MockPart", back_populates="question_sets")
     questions: Mapped[List["MockQuestion"]] = relationship(
         "MockQuestion",
@@ -125,6 +126,7 @@ class MockQuestion(Base):
     display_order: Mapped[int] = mapped_column(Integer, nullable=False)
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
     audio_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
+    conversation_audio_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
     choice_a: Mapped[str] = mapped_column(Text, nullable=False)
     choice_b: Mapped[str] = mapped_column(Text, nullable=False)
     choice_c: Mapped[str] = mapped_column(Text, nullable=False)
@@ -168,6 +170,7 @@ class ExerciseQuestionSet(Base):
     display_order: Mapped[int] = mapped_column(Integer, nullable=False)
     passage: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     audio_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
+    scripts: Mapped[Optional[List[Any]]] = mapped_column(JSON, nullable=True)
     exercise: Mapped["Exercise"] = relationship("Exercise", back_populates="question_sets")
     questions: Mapped[List["ExerciseQuestion"]] = relationship(
         "ExerciseQuestion",
@@ -187,6 +190,7 @@ class ExerciseQuestion(Base):
     display_order: Mapped[int] = mapped_column(Integer, nullable=False)
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
     audio_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
+    conversation_audio_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
     choice_a: Mapped[str] = mapped_column(Text, nullable=False)
     choice_b: Mapped[str] = mapped_column(Text, nullable=False)
     choice_c: Mapped[str] = mapped_column(Text, nullable=False)

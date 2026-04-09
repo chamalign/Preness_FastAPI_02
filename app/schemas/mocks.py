@@ -14,6 +14,7 @@ class Question(BaseModel):
     display_order: int
     question_text: str
     question_audio_url: Optional[str] = None
+    conversation_audio_url: Optional[str] = None
     choice_a: str
     choice_b: str
     choice_c: str
@@ -48,6 +49,7 @@ class QuestionSet(BaseModel):
     display_order: int
     passage: Optional[str] = None
     conversation_audio_url: Optional[str] = None
+    scripts: Optional[List[ScriptTurn]] = None
     questions: List[Question] = Field(..., min_length=1)
 
 

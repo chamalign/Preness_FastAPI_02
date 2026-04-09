@@ -1,6 +1,13 @@
 """Full Mock 用ペイロード組み立て (MockCreate 形)."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
+
+# scripts / conversation_audio_url の格納先ポリシー.
+# "questions"     : questions[].scripts + questions[].conversation_audio_url に入れる (現行 Rails 方針)
+# "question_sets" : question_sets[].scripts + question_sets[].conversation_audio_url に入れる
+# "both"          : 両方に入れる (移行期間用)
+ScriptPlacement = Literal["questions", "question_sets", "both"]
+SCRIPT_PLACEMENT: ScriptPlacement = "questions"
 
 
 def build_listening_part_for_api(
@@ -9,12 +16,16 @@ def build_listening_part_for_api(
     display_order: int,
     audio_url_map: Optional[Dict[str, str]] = None,
     block_starts_per_part: Optional[Dict[str, List[int]]] = None,
+    script_placement: Optional[ScriptPlacement] = None,
 ) -> Dict[str, Any]:
     """
     Listening 1 パート分を API 用 question_sets に変換.
     audio_url_map: 分割時は part_type:block_start:passage, part_type:idx:question. 非分割時は part_type:idx.
     block_starts_per_part: 各 part のブロック先頭 item 番号のリスト. 本文 URL 解決に使用.
+    script_placement: None のときはモジュール定数 SCRIPT_PLACEMENT を使用.
     """
+    placement: ScriptPlacement = script_placement if script_placement is not None else SCRIPT_PLACEMENT
+
     items = part_json.get("items")
     if not isinstance(items, list) or not items:
         raise ValueError(f"Listening part JSON の items が不正です: {part_type}")
@@ -41,10 +52,17 @@ def build_listening_part_for_api(
             )
         scripts = content["listening_script"]
 
+        # placement に応じて各フィールドの配置先を決める.
+        q_conv_audio = passage_url if placement in ("questions", "both") else None
+        q_scripts = scripts if placement in ("questions", "both") else None
+        qs_conv_audio = passage_url if placement in ("question_sets", "both") else None
+        qs_scripts = scripts if placement in ("question_sets", "both") else None
+
         q = {
             "display_order": 1,
             "question_text": item["question_text"],
             "question_audio_url": question_url,
+            "conversation_audio_url": q_conv_audio,
             "choice_a": item["choice_a"],
             "choice_b": item["choice_b"],
             "choice_c": item["choice_c"],
@@ -52,7 +70,7 @@ def build_listening_part_for_api(
             "correct_choice": item["correct_choice"],
             "explanation": item.get("explanation"),
             "tag": item.get("tag"),
-            "scripts": scripts,
+            "scripts": q_scripts,
             "wrong_reason_a": item.get("wrong_reason_a"),
             "wrong_reason_b": item.get("wrong_reason_b"),
             "wrong_reason_c": item.get("wrong_reason_c"),
@@ -61,7 +79,8 @@ def build_listening_part_for_api(
         question_sets.append({
             "display_order": idx,
             "passage": None,
-            "conversation_audio_url": passage_url,
+            "conversation_audio_url": qs_conv_audio,
+            "scripts": qs_scripts,
             "questions": [q],
         })
 

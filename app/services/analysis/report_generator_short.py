@@ -351,8 +351,6 @@ def generate_short_report(payload: Dict[str, Any]) -> Dict[str, Any]:
     report_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     meta = {
         "title": "TOEFL ITP®︎ 模試分析レポート (Short)",
-        "student_name": payload.get("student_name"),
-        "exam_date": payload.get("exam_date"),
         "exam_type": "short",
         "report_date": report_date,
         "goal_score": gs,

@@ -35,6 +35,7 @@ def _mock_orm_to_dict(mock: Mock) -> Dict[str, Any]:
                         "display_order": q.display_order,
                         "question_text": q.question_text,
                         "question_audio_url": q.audio_url,
+                        "conversation_audio_url": q.conversation_audio_url,
                         "choice_a": q.choice_a,
                         "choice_b": q.choice_b,
                         "choice_c": q.choice_c,
@@ -52,6 +53,7 @@ def _mock_orm_to_dict(mock: Mock) -> Dict[str, Any]:
                     "display_order": qs.display_order,
                     "passage": qs.passage,
                     "conversation_audio_url": qs.audio_url,
+                    "scripts": qs.scripts,
                     "questions": questions,
                 })
             parts.append({
@@ -123,6 +125,7 @@ def create_mock_from_payload(payload: MockCreate) -> int:
                         display_order=qs.display_order,
                         passage=qs.passage,
                         audio_url=qs.conversation_audio_url,
+                        scripts=_scripts_for_db(qs.scripts),
                     )
                     session.add(mqs)
                     session.flush()
@@ -133,6 +136,7 @@ def create_mock_from_payload(payload: MockCreate) -> int:
                             display_order=q.display_order,
                             question_text=q.question_text,
                             audio_url=q.question_audio_url,
+                            conversation_audio_url=q.conversation_audio_url,
                             choice_a=q.choice_a,
                             choice_b=q.choice_b,
                             choice_c=q.choice_c,

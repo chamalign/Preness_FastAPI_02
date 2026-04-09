@@ -29,3 +29,6 @@ dist/
 
 # Local temp
 .publish_tmp/
+
+# Local outputs
+outputs/

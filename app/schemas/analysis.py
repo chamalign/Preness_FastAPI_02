@@ -33,8 +33,6 @@ class AnalysisJobCreate(BaseModel):
     """分析ジョブ投入リクエスト."""
     attempt_id: str = Field(..., description="Rails の attempt.id など一意キー")
     exam_type: str = Field(default="full", description="short | full")
-    student_name: Optional[str] = Field(None, description="レポート表示用")
-    exam_date: Optional[str] = Field(None, description="YYYY-MM-DD")
     answers: List[AnswerItem] = Field(..., min_length=1)
     items: List[AnalysisItemMeta] = Field(..., min_length=1)
 
@@ -64,8 +62,6 @@ class ShortAnalysisJobCreate(BaseModel):
     passages の各 question_id は Reading 設問かつ passages 間で重複なし.
     """
     attempt_id: str = Field(..., description="Rails attempt.id など")
-    student_name: Optional[str] = None
-    exam_date: Optional[str] = Field(None, description="YYYY-MM-DD")
     goal_score: Optional[int] = Field(None, description="目標点, null 可")
     answers: List[AnswerItem] = Field(..., min_length=1)
     items: List[AnalysisItemMeta] = Field(..., min_length=1)

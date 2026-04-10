@@ -203,14 +203,10 @@ def synthesize_script_to_bytes(script: List[Dict[str, Any]]) -> bytes:
             logger.error("Azure Speech 失敗: %s", result.reason)
             raise ValueError(f"Azure Speech 合成失敗: reason={result.reason}")
 
-    stream = speechsdk.AudioDataStream(result)
-    chunks = []
-    # Azure SDK が要求する型が `bytes` のため、bytearray を渡すと ValueError になる
-    # (audio_buffer must be a bytes)
-    buf = bytes(32000)
-    while True:
-        n = stream.read_data(buf)
-        if n <= 0:
-            break
-        chunks.append(bytes(buf[:n]))
-    return b"".join(chunks)
+    # AudioDataStream.read_data に渡す bytes は不変のため実体が埋まらずゼロ連結になることがある.
+    # 合成済み波形は result.audio_data にまとまって返る.
+    audio = result.audio_data
+    if not audio:
+        logger.error("Azure Speech 成功だが audio_data が空")
+        raise ValueError("Azure Speech 合成結果の音声データが空です")
+    return bytes(audio)

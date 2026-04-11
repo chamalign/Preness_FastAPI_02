@@ -56,6 +56,29 @@ def _reject_replacement_char(value: str, ctx: str) -> None:
         )
 
 
+_CHOICE_TAG_RE: dict[str, re.Pattern[str]] = {
+    "choice_a": re.compile(r"\[A\](.*?)\[/A\]", re.DOTALL),
+    "choice_b": re.compile(r"\[B\](.*?)\[/B\]", re.DOTALL),
+    "choice_c": re.compile(r"\[C\](.*?)\[/C\]", re.DOTALL),
+    "choice_d": re.compile(r"\[D\](.*?)\[/D\]", re.DOTALL),
+}
+
+
+def _extract_choices_from_tags(question_text: str) -> dict[str, str] | None:
+    """
+    question_text に [A]...[/A] 〜 [D]...[/D] が4つ揃っていれば
+    {"choice_a": ..., "choice_b": ..., "choice_c": ..., "choice_d": ...} を返す.
+    揃っていなければ None (Part A や Listening には適用しない).
+    """
+    result: dict[str, str] = {}
+    for key, pat in _CHOICE_TAG_RE.items():
+        m = pat.search(question_text)
+        if not m:
+            return None
+        result[key] = m.group(1).strip()
+    return result
+
+
 def _normalize_correct_choice_rails(value: Any, ctx: str) -> str:
     if not isinstance(value, str):
         raise ValueError(f"correct_choice must be a string ({ctx})")
@@ -99,6 +122,12 @@ def _patch_question_dict(q: Dict[str, Any], ctx: str) -> None:
     tag_ctx = f"{ctx}.tag"
     q["correct_choice"] = _normalize_correct_choice_rails(q.get("correct_choice"), cc_ctx)
     q["tag"] = _normalize_tag_rails(q.get("tag"), tag_ctx)
+    # [A]...[/A] タグが4つ揃っていれば choice_* をタグ内テキストで上書き (Grammar Part B 用)
+    qt = q.get("question_text", "")
+    if isinstance(qt, str):
+        extracted = _extract_choices_from_tags(qt)
+        if extracted:
+            q.update(extracted)
     # その他の主要テキストに置換文字が混ざっていないか
     for key in (
         "question_text",

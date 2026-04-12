@@ -14,21 +14,8 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, Optional, Sequence
 
 
-REPO_ROOT_MARKER_DIR = ".venv-py313"
-
-
-def _find_repo_root(start: Path | None = None) -> Path:
-    """scripts/ や app/ からでもリポジトリ直下に辿り着くための簡易推定。"""
-    if start is None:
-        start = Path(__file__).resolve()
-    cur = start
-    for _ in range(10):
-        if (cur / REPO_ROOT_MARKER_DIR).is_dir():
-            return cur
-        if cur.parent == cur:
-            break
-        cur = cur.parent
-    # 最後の手段: このファイルから 3 階層戻る
+def _find_repo_root() -> Path:
+    """このファイル (app/services/hand_made_importer.py) から 3 階層上がリポジトリルート."""
     return Path(__file__).resolve().parents[3]
 
 

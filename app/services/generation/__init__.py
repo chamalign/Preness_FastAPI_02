@@ -5,7 +5,6 @@ from app.services.generation.prompt_loader import (
     get_sm_prompt_stems,
     get_p_stem_for_part_type,
     load_prompt,
-    get_fm_prompt_paths,
 )
 from app.services.generation.openai_client import generate_problem_json
 from app.services.generation.fm06_merger import merge_fm06
@@ -21,7 +20,6 @@ __all__ = [
     "get_fm_prompt_stems",
     "get_sm_prompt_stems",
     "get_p_stem_for_part_type",
-    "get_fm_prompt_paths",
     "load_prompt",
     "generate_problem_json",
     "merge_fm06",

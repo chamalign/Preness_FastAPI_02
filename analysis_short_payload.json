@@ -1,0 +1,33 @@
+{
+  "goal": { "target_score": 550 },
+  "parts_accuracy": {
+    "listening": {
+      "partA": { "correct": 10, "total": 12 },
+      "partB": { "correct": 4, "total": 6 },
+      "partC": { "correct": 5, "total": 8 }
+    },
+    "structure": {
+      "partA": { "correct": 6, "total": 10 },
+      "partB": { "correct": 12, "total": 18 }
+    },
+    "reading": {
+      "Reading_01": { "passage_thema": "Short passage 1", "correct": 4, "total": 8 },
+      "Reading_02": { "passage_thema": "Short passage 2", "correct": 3, "total": 8 },
+      "Reading_03": { "correct": 0, "total": 0 },
+      "Reading_04": { "correct": 0, "total": 0 },
+      "Reading_05": { "correct": 0, "total": 0 }
+    }
+  },
+  "tags": {
+    "shortConv": { "correct": 1, "total": 2 },
+    "longConv": { "correct": 1, "total": 2 },
+    "talk": { "correct": 0, "total": 2 },
+    "sentenceStruct": { "correct": 3, "total": 5 },
+    "verbForm": { "correct": 2, "total": 5 },
+    "modifierConnect": { "correct": 2, "total": 4 },
+    "nounPronoun": { "correct": 1, "total": 4 },
+    "vocab": { "correct": 3, "total": 6 },
+    "inference": { "correct": 2, "total": 4 },
+    "fact": { "correct": 2, "total": 4 }
+  }
+}

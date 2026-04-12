@@ -1,6 +1,6 @@
 # Preness Content Ingestion API
 
-問題投入・分析レポート・**問題生成 (FM / SM / P)** 用の FastAPI アプリケーション. 外部の問題生成フローからは Celery ジョブで OpenAI 等を使い模試・演習を生成し mocks / exercises に保存する. 従来どおり問題投入 API と分析ジョブも提供し, Rails は GET で同期・参照する.
+問題投入・分析レポート・**問題生成 (FM / SM / P)** 用の FastAPI アプリケーション. 外部の問題生成フローからは Celery ジョブで OpenAI 等を使い模試・演習を生成し mocks / exercises に保存する. 分析ジョブは Rails から集計 JSON を受け取り, 完了後に Rails へ結果を POST する. mocks / exercises については Rails が GET で同期・参照する.
 
 ---
 
@@ -41,8 +41,7 @@ FastAPI/
     │   ├── mock_service.py
     │   ├── analysis/
     │   │   ├── job_store.py
-    │   │   ├── report_generator.py
-    │   │   └── report_generator_short.py
+    │   │   └── report_generator.py
     │   ├── generation/          # openai_client, import_pipeline, audio_upload, *_merger 等
     │   ├── speech/              # Azure Speech (Listening TTS)
     │   └── storage/             # s3_client 等
@@ -76,11 +75,11 @@ FastAPI/
 
 | エンドポイント | 入力元 | 受け取るデータ | 出力 |
 |----------------|--------|----------------|------|
-| **POST** /api/v1/analysis/jobs | Rails（Full 模試終了後） | `attempt_id`, `exam_type`, … `answers[]`, `items[]` | 202 + `{ job_id, job_type: "full", status }` |
-| **POST** /api/v1/analysis/short/jobs | Rails（Short 模試） | 85 問 `items[]`, `passages` 2×10, `goal_score` null 可 等 | 202 + `{ job_id, job_type: "short", status }` |
-| **GET** /api/v1/analysis/jobs/{job_id} | Rails 等（ポーリング） | パス: `job_id`. API Key | 200 + `job_type`, `status`, `result?`. full / short で `result` の形が異なる |
+| **POST** /api/v1/analysis/jobs | Rails（Full / Short 共通） | `goal`（任意）, キー固定の `parts_accuracy`, `tags`（本文に `exam_type` は含めない. `parts_accuracy` の問題数から full / short を判定） | 202 + `{ job_id, job_type`（推定結果）, `status: "queued" }`. 問題数が既知パターンと一致しない場合は 422 |
 
-- 分析 API は **ANALYSIS_API_KEY**（問題投入用の CONTENT_SOURCE_API_KEY とは別）で認証する.
+- 分析 API は **ANALYSIS_API_KEY**（問題投入用の CONTENT_SOURCE_API_KEY とは別）で認証する（`Authorization: Bearer` または `X-Api-Key`）.
+- Celery 完了後, FastAPI が **`RAILS_API_BASE_URL/api/v1/analysis_reports`** に **`job_id`**, **`exam_type`**, **`scores`**（`listening` / `structure` / `reading` / `total` のみ. **`max` は送らない**）, **`narratives`** を POST する（`RAILS_API_BASE_URL` 未設定時はスキップ）. 認証は **RAILS_API_KEY**（なければ **CONTENT_SOURCE_API_KEY**）の Bearer.
+- リクエスト JSON の具体例はリポジトリ直下の **`analysis_full_payload.json`** / **`analysis_short_payload.json`** を参照. Short でも `Reading_01`〜`Reading_05` のキーは必須で, 未使用パッセージは `total: 0` などで埋める.
 
 ### 4. 問題生成ジョブ（generation）
 
@@ -107,7 +106,7 @@ FastAPI/
 
 - **422** バリデーションエラー（グローバルハンドラ）: `{ "status": "error", "errors": ["<フィールドパス>: <メッセージ>", ...] }`
 - **401** 認証エラー: FastAPI 既定により `{ "detail": { "status": "error", "errors": ["Unauthorized"] } }`（`Authorization: Bearer` または `X-Api-Key`）
-- **404** mocks / exercises / generation ジョブ: 多くは `{ "detail": "<メッセージ>" }`. 分析ジョブ GET の未存在は `detail` がオブジェクトになる場合あり
+- **404** mocks / exercises / generation ジョブ: 多くは `{ "detail": "<メッセージ>" }`
 
 ---
 
@@ -117,12 +116,12 @@ FastAPI/
 
 | 用途 | 呼び出し元の目安 |
 |------|------------------|
-| 分析レポートの総評・強み・課題 | `app/services/analysis/report_generator.py` の `_generate_narratives_with_gpt()`（モデル名はコード内の指定どおり, 例: **gpt-5-mini**） |
+| 分析レポートの総評・強み・課題 | `app/services/analysis/report_generator.py` の `_generate_narratives_with_gpt()`（モデル名はコード内の指定どおり） |
 | 模試・演習の問題生成 | `app/services/generation/`（Celery `generation_tasks` から） |
 
 - **分析**: **OPENAI_API_KEY** 未設定時、および OpenAI 呼び出しエラー（例: 429 など）時はナラティブがプレースホルダー文言になり, ジョブ自体は完了しうる.
 - **問題生成**: **OPENAI_API_KEY** 必須（未設定時は失敗しうる）.
-- **分析と生成の API 統一**: 分析ナラティブは現状 **Chat Completions**（`report_generator*.py`）. 問題生成は **Responses API**. 分析も Responses に寄せるリファクタは別 PR で扱う想定.
+- **分析ナラティブ**: **Responses API**（`report_generator.py`）.
 
 #### OpenAI トラブルシュート（生成・分析）
 
@@ -183,12 +182,12 @@ Listening パートの音声合成に **Azure Speech** を利用する（`app/se
 [問題生成アプリ]  --POST (模試/演習 JSON)-->  FastAPI  --保存-->  PostgreSQL (mocks / exercises)
 [Rails]           --GET (一覧・1 件)------>  FastAPI  --参照-->  上記 DB
 
-[Rails (模試終了)] --POST (attempt_id, answers, items)-->  FastAPI  --ジョブ作成-->  PostgreSQL (analysis_jobs)
+[Rails (模試終了)] --POST (goal, parts_accuracy, tags)-->  FastAPI  --ジョブ作成-->  PostgreSQL (analysis_jobs)
                                                                     --キュー投入-->  Redis → Celery Worker
-                                                                                         --採点--> スコア・tag_accuracy
+                                                                                         --換算スコア計算（parts_accuracy 合算）
                                                                                          --OpenAI API（任意）--> 総評・強み・課題
-                                                                                         --> 結果を analysis_jobs に保存
-[Rails]           --GET (job_id)------------------------->  FastAPI  --参照-->  analysis_jobs → スコア・総評を返す
+                                                                                         --> 結果を analysis_jobs に保存（ログ用）
+[Rails]           <--POST (job_id, exam_type, scores, narratives)-----------  FastAPI  --Rails受け口-->  /api/v1/analysis_reports
 ```
 
 ---
@@ -198,7 +197,9 @@ Listening パートの音声合成に **Azure Speech** を利用する（`app/se
 | 変数名 | 用途 |
 |--------|------|
 | CONTENT_SOURCE_API_KEY | 問題投入・mocks/exercises 取得・**生成ジョブ**用 API Key |
-| ANALYSIS_API_KEY | 分析ジョブ投入・結果取得用 API Key（別キー） |
+| ANALYSIS_API_KEY | 分析ジョブ投入用 API Key（別キー） |
+| RAILS_API_BASE_URL | （任意）設定時, 分析完了後に Rails へ結果 POST |
+| RAILS_API_KEY | （任意）Rails POST 用 Bearer. 未設定時は **CONTENT_SOURCE_API_KEY** を使用 |
 | DATABASE_URL | PostgreSQL 接続文字列 |
 | REDIS_URL | Celery ブローカー用 Redis |
 | OPENAI_API_KEY | 分析ナラティブ（未設定時はプレースホルダー）・**問題生成（実質必須）** |
@@ -362,7 +363,9 @@ curl -sS "$BASE_URL/api/v1/exercises/$EXERCISE_ID" -H "X-Api-Key: $CONTENT_SOURC
 - `curl -d @file.json` で `No such file` / `option -d: error encountered when reading a file` になる場合は, **パスが存在しない**ため, `--data-binary "@/絶対パス/...json"` を使う.
 - S3 URL は Azure Speech + S3 が設定されているときのみ付与される（未設定なら URL が入らない/空になりうる）.
 
-### 4) 分析レポート（Rails → job投入 → ポーリング）
+### 4) 分析レポート（Rails → job投入 → Rails へ POST 返却）
+
+`analysis_full_payload.json` / `analysis_short_payload.json` をそのまま使える（**`attempt_id` は不要**）.
 
 #### Full
 ```bash
@@ -372,18 +375,15 @@ curl -sS -X POST "$BASE_URL/api/v1/analysis/jobs" \
   -d @analysis_full_payload.json
 ```
 
-#### Short
+#### Short（同一エンドポイント. `parts_accuracy` が Short 用問題数の JSON）
 ```bash
-curl -sS -X POST "$BASE_URL/api/v1/analysis/short/jobs" \
+curl -sS -X POST "$BASE_URL/api/v1/analysis/jobs" \
   -H "Authorization: Bearer $ANALYSIS_API_KEY" \
   -H "Content-Type: application/json" \
   -d @analysis_short_payload.json
 ```
 
-結果取得:
-```bash
-curl -sS "$BASE_URL/api/v1/analysis/jobs/$JOB_ID" -H "X-Api-Key: $ANALYSIS_API_KEY"
-```
+Rails 側受け口（FastAPI → Rails）: **`POST $RAILS_API_BASE_URL/api/v1/analysis_reports`**（本文: `job_id`, `exam_type`, `scores`（`max` なし）, `narratives`）. **`RAILS_API_BASE_URL` 未設定**のときは POST は行われない.
 
 ### 5) 取捨選択（今回見えたエラーの扱い）
 

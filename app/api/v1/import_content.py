@@ -28,16 +28,8 @@ def _validation_error_response(message: str) -> JSONResponse:
     )
 
 
-@router.post(
-    "/full_mock",
-    response_model=MockCreateResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-async def import_full_mock(
-    body: FullMockImportBody,
-    _: Any = Depends(verify_api_key),
-) -> MockCreateResponse | JSONResponse:
-    """full_parts (生成ジョブと同形) を受け取り, Listening 音声を S3 に載せて Mock を保存."""
+def _import_mock(body: FullMockImportBody) -> MockCreateResponse | JSONResponse:
+    """full_parts を受け取り, Listening 音声を S3 に載せて Mock を保存する共通処理."""
     audio_path_id = str(uuid.uuid4())
     fp = cast(
         Dict[str, Dict[str, Any]],
@@ -56,6 +48,19 @@ async def import_full_mock(
         mock_id=out["mock_id"],
         title=body.title,
     )
+
+
+@router.post(
+    "/full_mock",
+    response_model=MockCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def import_full_mock(
+    body: FullMockImportBody,
+    _: Any = Depends(verify_api_key),
+) -> MockCreateResponse | JSONResponse:
+    """full_parts (生成ジョブと同形) を受け取り, Listening 音声を S3 に載せて Mock を保存."""
+    return _import_mock(body)
 
 
 @router.post(
@@ -68,24 +73,7 @@ async def import_short_mock(
     _: Any = Depends(verify_api_key),
 ) -> MockCreateResponse | JSONResponse:
     """SM 用 full_parts (キーは FM と同じ 6 つ)."""
-    audio_path_id = str(uuid.uuid4())
-    fp = cast(
-        Dict[str, Dict[str, Any]],
-        {k: body.full_parts[k] for k in FULL_MOCK_KEYS},
-    )
-    try:
-        out = process_mock_from_full_parts(
-            full_parts=fp,
-            title=body.title,
-            audio_path_id=audio_path_id,
-        )
-    except ValueError as e:
-        return _validation_error_response(str(e))
-    return MockCreateResponse(
-        status="success",
-        mock_id=out["mock_id"],
-        title=body.title,
-    )
+    return _import_mock(body)
 
 
 @router.post(

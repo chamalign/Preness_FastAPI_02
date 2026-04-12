@@ -1,0 +1,33 @@
+{
+  "goal": { "target_score": 500 },
+  "parts_accuracy": {
+    "listening": {
+      "partA": { "correct": 25, "total": 30 },
+      "partB": { "correct": 5, "total": 8 },
+      "partC": { "correct": 8, "total": 12 }
+    },
+    "structure": {
+      "partA": { "correct": 10, "total": 15 },
+      "partB": { "correct": 15, "total": 25 }
+    },
+    "reading": {
+      "Reading_01": { "passage_thema": "Theme (optional)", "correct": 6, "total": 10 },
+      "Reading_02": { "passage_thema": "Theme (optional)", "correct": 5, "total": 10 },
+      "Reading_03": { "passage_thema": "Theme (optional)", "correct": 4, "total": 10 },
+      "Reading_04": { "passage_thema": "Theme (optional)", "correct": 7, "total": 10 },
+      "Reading_05": { "passage_thema": "Theme (optional)", "correct": 3, "total": 10 }
+    }
+  },
+  "tags": {
+    "shortConv": { "correct": 20, "total": 30 },
+    "longConv": { "correct": 5, "total": 8 },
+    "talk": { "correct": 7, "total": 12 },
+    "sentenceStruct": { "correct": 10, "total": 15 },
+    "verbForm": { "correct": 15, "total": 25 },
+    "modifierConnect": { "correct": 6, "total": 10 },
+    "nounPronoun": { "correct": 5, "total": 10 },
+    "vocab": { "correct": 6, "total": 10 },
+    "inference": { "correct": 3, "total": 10 },
+    "fact": { "correct": 5, "total": 10 }
+  }
+}

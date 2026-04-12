@@ -80,3 +80,40 @@ def post_exercise_to_rails(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     except Exception as e:
         logger.warning("Rails POST /api/v1/exercises error: %s", e)
         raise RailsPostError(f"Rails POST /api/v1/exercises error: {e}") from e
+
+
+def post_analysis_report_to_rails(
+    job_id: str,
+    exam_type: str,
+    scores: Dict[str, Any],
+    narratives: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    """分析レポート（スコア・総評・強み・課題）を Rails に POST する. RAILS_API_BASE_URL 未設定時はスキップ.
+
+    scores から ``max`` キーは送らない（Rails 向けペイロードのみ除外）.
+    ジョブ相関は ``job_id``（分析ジョブの UUID 文字列）で行う.
+    """
+    settings = get_settings()
+    if not settings.rails_api_base_url:
+        return None
+
+    scores_out = {k: v for k, v in scores.items() if k != "max"}
+    url = f"{settings.rails_api_base_url.rstrip('/')}/api/v1/analysis_reports"
+    payload = {
+        "job_id": job_id,
+        "exam_type": exam_type,
+        "scores": scores_out,
+        "narratives": narratives,
+    }
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            response = client.post(url, json=payload, headers=_get_headers())
+            _raise_for_status(response, "POST /api/v1/analysis_reports")
+            result = response.json()
+            logger.info("Rails analysis report registered: job_id=%s", job_id)
+            return result
+    except RailsPostError:
+        raise
+    except Exception as e:
+        logger.warning("Rails POST /api/v1/analysis_reports error: %s", e)
+        raise RailsPostError(f"Rails POST /api/v1/analysis_reports error: {e}") from e

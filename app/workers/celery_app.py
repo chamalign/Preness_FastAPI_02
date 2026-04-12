@@ -8,7 +8,7 @@ celery_app = Celery(
     "preness_analysis",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["app.workers.analysis_tasks", "app.workers.generation_tasks"],
+    include=["app.workers.generation_tasks"],
 )
 celery_app.conf.update(
     task_serializer="json",

@@ -2,7 +2,7 @@
 
 import random
 from pathlib import Path
-from typing import List, Tuple
+from typing import List
 
 from app.core.config import get_settings
 
@@ -59,11 +59,6 @@ def get_sm_prompt_stems() -> List[str]:
     return list(SM_PROMPT_STEMS)
 
 
-def get_p_prompt_stems() -> List[str]:
-    """P 用プロンプトの stem 一覧 (P01～P05 + P06_Long, P06_Short)."""
-    return list(P_PROMPT_STEMS)
-
-
 def get_p_stem_for_part_type(part_type: str) -> str:
     """P 系で part_type に対応する stem を返す. reading の場合は Long/Short をランダムに選ぶ."""
     stem = P_PART_TYPE_TO_STEM.get(part_type)
@@ -72,20 +67,6 @@ def get_p_stem_for_part_type(part_type: str) -> str:
     if part_type == "reading":
         return random.choice(["P06_Reading_Long", "P06_Reading_Short"])
     raise ValueError(f"不明な part_type: {part_type}")
-
-
-def get_fm_prompt_paths() -> List[Tuple[str, Path]]:
-    """(stem, Path) のリスト。get_settings().generation_prompts_dir をスキャンし FM*.txt を返す."""
-    settings = get_settings()
-    base = Path(settings.generation_prompts_dir)
-    if not base.is_dir():
-        return []
-    result = []
-    for stem in FM_PROMPT_STEMS:
-        path = base / f"{stem}.txt"
-        if path.is_file():
-            result.append((stem, path))
-    return result
 
 
 def load_prompt(stem: str) -> str:

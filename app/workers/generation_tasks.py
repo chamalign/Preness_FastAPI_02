@@ -84,7 +84,7 @@ def run_full_mock_generation(self, title: str, job_id: str) -> None:
                 logger.warning("Attempt %s failed for %s: %s", attempt + 1, stem, e)
                 if attempt == 0:
                     continue
-                _update_job_status(uid, "failed", error_message=f"Generation failed for {stem}: {e}")
+                _update_job_status(uid, "failed", error_message=f"{stem} の生成に失敗しました: {e}")
                 return
 
     missing = set(FM_STEM_TO_KEY.values()) - set(parts_raw.keys())
@@ -156,7 +156,7 @@ def run_short_mock_generation(self, title: str, job_id: str) -> None:
                 logger.warning("Attempt %s failed for %s: %s", attempt + 1, stem, e)
                 if attempt == 0:
                     continue
-                _update_job_status(uid, "failed", error_message=f"Generation failed for {stem}: {e}")
+                _update_job_status(uid, "failed", error_message=f"{stem} の生成に失敗しました: {e}")
                 return
 
     if len(parts_raw) != 6:
@@ -219,10 +219,10 @@ def run_practice_generation(self, part_type: str, job_id: str) -> None:
         except Exception as e:
             logger.warning("Attempt %s failed for %s: %s", attempt + 1, stem, e)
             if attempt == 1:
-                _update_job_status(uid, "failed", error_message=f"Generation failed for {stem}: {e}")
+                _update_job_status(uid, "failed", error_message=f"{stem} の生成に失敗しました: {e}")
                 return
     if data is None:
-        _update_job_status(uid, "failed", error_message="Generation returned no data")
+        _update_job_status(uid, "failed", error_message="生成処理がデータを返しませんでした")
         return
 
     try:

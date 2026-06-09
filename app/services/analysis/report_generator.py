@@ -173,7 +173,7 @@ async def _generate_narratives_with_gpt(
     settings = get_settings()
     api_key = settings.analysis_openai_api_key or settings.openai_api_key
     if not api_key:
-        raise RuntimeError("ANALYSIS_OPENAI_API_KEY is not configured")
+        raise RuntimeError("ANALYSIS_OPENAI_API_KEY が設定されていません")
 
     goal_score = goal.get("target_score") if goal else None
     ctx = _build_gpt_ctx(parts_accuracy, tags, scores, goal_score)

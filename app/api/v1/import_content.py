@@ -29,6 +29,13 @@ def _validation_error_response(message: str) -> JSONResponse:
     )
 
 
+def _internal_error_response(exc: Exception) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"status": "error", "errors": [f"[{type(exc).__name__}] {exc}"]},
+    )
+
+
 def _import_mock(body: FullMockImportBody) -> MockCreateResponse | JSONResponse:
     """full_parts を受け取り, Listening 音声を S3 に載せて Mock を保存する共通処理."""
     audio_path_id = str(uuid.uuid4())
@@ -45,6 +52,8 @@ def _import_mock(body: FullMockImportBody) -> MockCreateResponse | JSONResponse:
         )
     except ValueError as e:
         return _validation_error_response(str(e))
+    except Exception as e:
+        return _internal_error_response(e)
     return MockCreateResponse(
         status="success",
         mock_id=out["mock_id"],
@@ -67,6 +76,8 @@ def _import_diagnostic(body: FullMockImportBody) -> MockCreateResponse | JSONRes
         )
     except ValueError as e:
         return _validation_error_response(str(e))
+    except Exception as e:
+        return _internal_error_response(e)
     return MockCreateResponse(
         status="success",
         mock_id=out["mock_id"],
@@ -119,6 +130,8 @@ async def import_practice(
         )
     except ValueError as e:
         return _validation_error_response(str(e))
+    except Exception as e:
+        return _internal_error_response(e)
     ids = out["exercise_ids"]
     return ExerciseCreateResponse(
         status="success",

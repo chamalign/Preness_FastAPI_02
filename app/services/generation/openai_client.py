@@ -136,7 +136,7 @@ def _responses_create_with_retries(
                     break  # next rate_attempt, re-enter inner while with full kwargs
                 raise
         # レート制限で break した場合は外側ループで再試行
-    raise RuntimeError("openai responses.create: exhausted retries without result")
+    raise RuntimeError("OpenAI API へのリクエストがリトライ上限に達しました: レスポンスを取得できませんでした")
 
 
 def _chat_completions_create(
@@ -195,7 +195,7 @@ def generate_problem_json(prompt: str, config: Optional[Dict[str, Any]] = None) 
     )
     if not api_key:
         raise RuntimeError(
-            "OpenAI API key is not set for generation (GENERATION_OPENAI_API_KEY / CONTENT_SOURCE_API_KEY / OPENAI_API_KEY)"
+            "OpenAI API キーが設定されていません (GENERATION_OPENAI_API_KEY / CONTENT_SOURCE_API_KEY / OPENAI_API_KEY)"
         )
 
     cfg = config or _load_api_config()

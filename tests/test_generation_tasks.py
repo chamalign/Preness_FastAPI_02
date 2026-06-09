@@ -76,6 +76,6 @@ def test_practice_none_marks_failed(monkeypatch) -> None:
     assert update_mock.call_count == 2
     assert update_mock.call_args_list[0].args[1] == "running"
     assert update_mock.call_args_list[1].args[1] == "failed"
-    assert update_mock.call_args_list[1].kwargs.get("error_message") == "Generation returned no data"
+    assert update_mock.call_args_list[1].kwargs.get("error_message") == "生成処理がデータを返しませんでした"
     process_mock.assert_not_called()
 

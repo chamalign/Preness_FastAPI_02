@@ -50,33 +50,30 @@ async def enqueue_analysis_job(
             content=ErrorResponse(errors=[str(e)]).model_dump(),
         )
 
-    request_payload = analysis_request_to_report_payload(payload)
     job_id = uuid.uuid4()
-
     try:
+        request_payload = analysis_request_to_report_payload(payload)
         result = await generate_report(request_payload)
+        scores = result["scores"]
+        narratives = result["narratives"]
+        return AnalysisReportResponse(
+            job_id=str(job_id),
+            exam_type=exam_type,
+            scores=ScoresOut(
+                listening=scores["listening"],
+                structure=scores["structure"],
+                reading=scores["reading"],
+                total=scores["total"],
+            ),
+            narratives=NarrativesOut(
+                summary_closing=narratives["summary_closing"],
+                strength=narratives["strength"],
+                challenge=narratives["challenge"],
+            ),
+        )
     except Exception as e:
-        logger.exception("Report generation failed for job %s: %s", job_id, e)
+        logger.exception("レポート生成に失敗しました job_id=%s: %s", job_id, e)
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=ErrorResponse(errors=[str(e)]).model_dump(),
+            content=ErrorResponse(errors=[f"[{type(e).__name__}] {e}"]).model_dump(),
         )
-
-    scores = result["scores"]
-    narratives = result["narratives"]
-
-    return AnalysisReportResponse(
-        job_id=str(job_id),
-        exam_type=exam_type,
-        scores=ScoresOut(
-            listening=scores["listening"],
-            structure=scores["structure"],
-            reading=scores["reading"],
-            total=scores["total"],
-        ),
-        narratives=NarrativesOut(
-            summary_closing=narratives["summary_closing"],
-            strength=narratives["strength"],
-            challenge=narratives["challenge"],
-        ),
-    )

@@ -4,8 +4,6 @@ import json
 import random
 from pathlib import Path
 
-import pytest
-
 from app.services.hand_made_importer import (
     build_full_parts_payload,
     build_practice_part_payload_from_file,
@@ -14,29 +12,77 @@ from app.services.hand_made_importer import (
 )
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+def _write_json(path: Path, obj: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(obj, ensure_ascii=False), encoding="utf-8")
 
 
-def test_load_json_txt_fullmock_grammar_b() -> None:
-    path = REPO_ROOT / "hand_made" / "Full_Mock" / "05_Grammar_B.txt"
+def test_load_json_txt_fullmock_grammar_b(tmp_path: Path) -> None:
+    path = tmp_path / "05_Grammar_B.txt"
+    _write_json(
+        path,
+        {
+            "questions": [
+                {
+                    "question_text": "Q1",
+                    "choice_a": "a",
+                    "choice_b": "b",
+                    "choice_c": "c",
+                    "choice_d": "d",
+                    "correct_choice": "a",
+                }
+            ]
+        },
+    )
     obj = load_json_txt(path)
     assert "questions" in obj
     assert isinstance(obj["questions"], list)
     assert obj["questions"], "questions should not be empty"
 
 
-def test_load_json_txt_reading_short() -> None:
-    path = REPO_ROOT / "hand_made" / "Excecise" / "Reading_Short" / "01_Reading_short.txt"
+def test_load_json_txt_reading_short(tmp_path: Path) -> None:
+    path = tmp_path / "01_Reading_short.txt"
+    _write_json(
+        path,
+        {
+            "passages": [
+                {
+                    "passage": "p1",
+                    "questions": [
+                        {
+                            "question_text": "q",
+                            "choice_a": "a",
+                            "choice_b": "b",
+                            "choice_c": "c",
+                            "choice_d": "d",
+                            "correct_choice": "a",
+                        }
+                    ],
+                }
+            ]
+        },
+    )
     obj = load_json_txt(path)
     assert "passages" in obj
     assert isinstance(obj["passages"], list)
     assert obj["passages"], "passages should not be empty"
 
 
-def test_build_full_parts_payload_shape() -> None:
-    set_dir = REPO_ROOT / "hand_made" / "Full_Mock"
+def test_build_full_parts_payload_shape(tmp_path: Path) -> None:
+    set_dir = tmp_path / "Full_Mock"
+    set_dir.mkdir()
+    _write_json(set_dir / "01_Listening_A.txt", {"items": []})
+    _write_json(set_dir / "02_Listening_B.txt", {"items": []})
+    _write_json(set_dir / "03_Listening_C.txt", {"items": []})
+    _write_json(set_dir / "04_Grammar_A.txt", {"questions": []})
+    _write_json(set_dir / "05_Grammar_B.txt", {"questions": [{"question_text": "x"}]})
+    _write_json(
+        set_dir / "06_Reading.txt",
+        {"passages": [{"passage": "p", "questions": [{"question_text": "q"}]}]},
+    )
+
     payload = build_full_parts_payload(set_dir, kind="full")
-    assert payload["title"]  # normalized or set_dir.name
+    assert payload["title"]
     full_parts = payload["full_parts"]
     assert set(full_parts.keys()) == {
         "listening_part_a",
@@ -49,8 +95,31 @@ def test_build_full_parts_payload_shape() -> None:
     assert "passages" in full_parts["reading"]
 
 
-def test_build_practice_payload_listening_b_fix_applied() -> None:
-    path = REPO_ROOT / "hand_made" / "Excecise" / "Listening_B" / "01_Listening_B.txt"
+def test_build_practice_payload_listening_b_fix_applied(tmp_path: Path) -> None:
+    part_dir = tmp_path / "Listening_B"
+    part_dir.mkdir()
+    path = part_dir / "01_Listening_B.txt"
+    _write_json(
+        path,
+        {
+            "items": [
+                {
+                    "question_text": "Actual question?",
+                    "choice_a": "a",
+                    "choice_b": "b",
+                    "choice_c": "c",
+                    "choice_d": "d",
+                    "correct_choice": "a",
+                    "content": {
+                        "listening_script": [
+                            {"speaker": "narrator", "text": "Question [number]."},
+                            {"speaker": "narrator", "text": "[question_text]"},
+                        ]
+                    },
+                }
+            ]
+        },
+    )
     payload = build_practice_part_payload_from_file(path)
     assert payload["part_type"] == "listening_part_b"
 
@@ -64,23 +133,29 @@ def test_build_practice_payload_listening_b_fix_applied() -> None:
 
 
 def test_pick_unused_reading_file_excludes_used(tmp_path: Path) -> None:
-    short_dir = REPO_ROOT / "hand_made" / "Excecise" / "Reading_Short"
-    long_dir = REPO_ROOT / "hand_made" / "Excecise" / "Reading_Long"
+    short_dir = tmp_path / "Reading_Short"
+    long_dir = tmp_path / "Reading_Long"
+    short_dir.mkdir()
+    long_dir.mkdir()
+    f1 = short_dir / "a.txt"
+    f2 = short_dir / "b.txt"
+    f1.write_text("{}", encoding="utf-8")
+    f2.write_text("{}", encoding="utf-8")
+
     candidates = sorted(list(short_dir.glob("*.txt")) + list(long_dir.glob("*.txt")))
     assert len(candidates) >= 2
 
-    # 最後の候補だけ unused にする
     unused = candidates[-1]
     used = candidates[:-1]
 
     record_path = tmp_path / "used_reading.json"
-    used_rel = [str(p.relative_to(REPO_ROOT)) for p in used]
+    used_rel = [str(p.relative_to(tmp_path)) for p in used]
     record_path.write_text(json.dumps({"used": used_rel}, ensure_ascii=False), encoding="utf-8")
 
     chosen = pick_unused_reading_file(
         reading_short_dir=short_dir,
         reading_long_dir=long_dir,
-        repo_root=REPO_ROOT,
+        repo_root=tmp_path,
         record_path=record_path,
         rng=random.Random(0),
         allow_all_if_exhausted=False,
@@ -90,4 +165,4 @@ def test_pick_unused_reading_file_excludes_used(tmp_path: Path) -> None:
     assert chosen == unused
     written = json.loads(record_path.read_text(encoding="utf-8"))
     assert isinstance(written["used"], list)
-    assert str(unused.relative_to(REPO_ROOT)) in written["used"]
+    assert str(unused.relative_to(tmp_path)) in written["used"]

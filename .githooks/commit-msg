@@ -1,0 +1,4 @@
+#!/bin/sh
+# Strips "Made-with: Cursor" from the commit message before the commit is recorded.
+ROOT="$(git rev-parse --show-toplevel)"
+exec python3 "$ROOT/scripts/strip_cursor_commit_trailer.py" "$1"

@@ -52,6 +52,7 @@ def _mock_orm_to_dict(mock: Mock) -> Dict[str, Any]:
                 question_sets.append({
                     "display_order": qs.display_order,
                     "passage": qs.passage,
+                    "passage_theme": qs.passage_theme,
                     "conversation_audio_url": qs.audio_url,
                     "scripts": qs.scripts,
                     "questions": questions,
@@ -93,7 +94,7 @@ def get_mock_by_id(mock_id: int) -> Optional[Dict[str, Any]]:
 
 def create_mock_from_payload(payload: MockCreate) -> int:
     """
-    MockCreate を DB に保存し、発番した mock_id を返す.
+    MockCreate を DB に保存し, 発番した mock_id を返す.
     """
     with get_db() as session:
         mock = Mock(title=payload.title)
@@ -124,6 +125,7 @@ def create_mock_from_payload(payload: MockCreate) -> int:
                         mock_part_id=mp.id,
                         display_order=qs.display_order,
                         passage=qs.passage,
+                        passage_theme=qs.passage_theme,
                         audio_url=qs.conversation_audio_url,
                         scripts=_scripts_for_db(qs.scripts),
                     )

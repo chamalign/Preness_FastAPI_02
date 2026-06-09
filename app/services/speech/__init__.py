@@ -1,5 +1,3 @@
-"""Speech synthesis (Azure)."""
-
 from app.services.speech.azure_speech import (
     _split_config,
     passage_signature,

@@ -1,20 +1,17 @@
-"""Load FM / SM / P generation prompts from prompts/completed."""
-
 import random
 from pathlib import Path
-from typing import List, Tuple
+from typing import List
 
 from app.core.config import get_settings
 
-# FM 用 7 本: FM01～FM05, FM06_Reading_Long3, FM06_Reading_Short2
+# FM 用 6 本: FM01～FM05, FM06_Reading (5 passages 統合済み)
 FM_PROMPT_STEMS = [
     "FM01_Listening_Part_A",
     "FM02_Listening_Part_B",
     "FM03_Listening_Part_C",
     "FM04_Grammar_Part_A",
     "FM05_Grammar_Part_B",
-    "FM06_Reading_Long3",
-    "FM06_Reading_Short2",
+    "FM06_Reading",
 ]
 
 # SM 用 6 本: SM01～SM06 (SM06 は 1 本)
@@ -50,18 +47,13 @@ P_PART_TYPE_TO_STEM = {
 
 
 def get_fm_prompt_stems() -> List[str]:
-    """FM 用プロンプトの stem 一覧 (7 本)."""
+    """FM 用プロンプトの stem 一覧 (6 本)."""
     return list(FM_PROMPT_STEMS)
 
 
 def get_sm_prompt_stems() -> List[str]:
     """SM 用プロンプトの stem 一覧 (6 本)."""
     return list(SM_PROMPT_STEMS)
-
-
-def get_p_prompt_stems() -> List[str]:
-    """P 用プロンプトの stem 一覧 (P01～P05 + P06_Long, P06_Short)."""
-    return list(P_PROMPT_STEMS)
 
 
 def get_p_stem_for_part_type(part_type: str) -> str:
@@ -72,20 +64,6 @@ def get_p_stem_for_part_type(part_type: str) -> str:
     if part_type == "reading":
         return random.choice(["P06_Reading_Long", "P06_Reading_Short"])
     raise ValueError(f"不明な part_type: {part_type}")
-
-
-def get_fm_prompt_paths() -> List[Tuple[str, Path]]:
-    """(stem, Path) のリスト。get_settings().generation_prompts_dir をスキャンし FM*.txt を返す."""
-    settings = get_settings()
-    base = Path(settings.generation_prompts_dir)
-    if not base.is_dir():
-        return []
-    result = []
-    for stem in FM_PROMPT_STEMS:
-        path = base / f"{stem}.txt"
-        if path.is_file():
-            result.append((stem, path))
-    return result
 
 
 def load_prompt(stem: str) -> str:

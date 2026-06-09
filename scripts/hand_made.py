@@ -106,7 +106,7 @@ def cmd_import_full_mock(args: argparse.Namespace) -> None:
     _write_used_mocks_record(record_path, used)
 
 
-def cmd_import_short_mock(args: argparse.Namespace) -> None:
+def cmd_import_diagnostics(args: argparse.Namespace) -> None:
     repo_root = _default_repo_root()
     set_dir = Path(args.set_dir)
     if not set_dir.is_absolute():
@@ -133,7 +133,7 @@ def cmd_import_short_mock(args: argparse.Namespace) -> None:
     out = _post_json(
         base_url=args.base_url,
         api_key=_read_api_key(args.api_key),
-        endpoint="/api/v1/import/short_mock",
+        endpoint="/api/v1/import/diagnostics",
         payload=payload,
     )
     print(out)
@@ -202,11 +202,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_full.add_argument("--force", action="store_true", help="投入済みでも強制的に再投入する")
     p_full.set_defaults(func=cmd_import_full_mock)
 
-    p_short = sub.add_parser("import-short-mock", help="POST /api/v1/import/short_mock")
-    p_short.add_argument("set_dir", nargs="?", default="hand_made/Short_Mock")
-    p_short.add_argument("--used-record", default=None, help="投入済み台帳のパス (default outputs/used_mocks.json)")
-    p_short.add_argument("--force", action="store_true", help="投入済みでも強制的に再投入する")
-    p_short.set_defaults(func=cmd_import_short_mock)
+    p_diag = sub.add_parser("import-diagnostics", help="POST /api/v1/import/diagnostics")
+    p_diag.add_argument("set_dir", nargs="?", default="hand_made/Short_Mock")
+    p_diag.add_argument("--used-record", default=None, help="投入済み台帳のパス (default outputs/used_mocks.json)")
+    p_diag.add_argument("--force", action="store_true", help="投入済みでも強制的に再投入する")
+    p_diag.set_defaults(func=cmd_import_diagnostics)
 
     p_practice = sub.add_parser("import-practice", help="POST /api/v1/import/practice")
     p_practice.add_argument("--file", default=None, help="part txt file path (for listening/grammar/reading)")

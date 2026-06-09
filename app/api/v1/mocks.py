@@ -21,7 +21,7 @@ async def create_mock(
 ) -> MockCreateResponse:
     """
     模擬試験の問題投入エンドポイント(Notion 準拠).
-    受け取った内容を FastAPI 自 DB に保存し、発番した mock_id を返す.
+    受け取った内容を FastAPI 自 DB に保存し, 発番した mock_id を返す.
     """
     mock_id = create_mock_from_payload(payload)
     return MockCreateResponse(status="success", mock_id=mock_id, title=payload.title)

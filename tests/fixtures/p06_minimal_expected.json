@@ -1,0 +1,18 @@
+{
+  "passage": "Technology has changed modern life in many ways. Communication is faster than ever.\n\nThe internet [U1]facilitates[/U1] the exchange of information across the globe. People can now access knowledge instantly.",
+  "questions": [
+    {
+      "question_text": "The word \"[U1]facilitates[/U1]\" in paragraph 2, sentence 1 is closest in meaning to",
+      "choice_a": "prevents",
+      "choice_b": "enables",
+      "choice_c": "interrupts",
+      "choice_d": "measures",
+      "correct_choice": "B",
+      "tag": "vocab",
+      "target_phrase": "facilitates",
+      "target_paragraph": 2,
+      "target_sentence": 1,
+      "explanation": "facilitatesはenables（可能にする）と同義。"
+    }
+  ]
+}

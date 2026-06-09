@@ -1,5 +1,5 @@
 """
-S3 に音声 bytes をアップロードし、URL を返す.
+S3 に音声 bytes をアップロードし, URL を返す.
 bucket/region 未設定時は None を返す.
 """
 
@@ -16,7 +16,7 @@ def upload_audio_bytes(
     content_type: str = "audio/wav",
 ) -> str:
     """
-    bytes を S3 にアップロードし、オブジェクトの URL を返す.
+    bytes を S3 にアップロードし, オブジェクトの URL を返す.
     失敗時は ValueError を送出する.
     """
     settings = get_settings()

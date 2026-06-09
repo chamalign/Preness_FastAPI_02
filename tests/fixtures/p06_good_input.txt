@@ -1,0 +1,70 @@
+{
+  "passage": "Economic development has transformed societies worldwide. Scholars study its long-term effects on human welfare.\n\nThe process by which growth facilitates social change is complex. Rapid industrialization often exacerbates existing inequalities between urban and rural populations.\n\nUrban migration accelerates these transformations. People who migrate to cities seek better economic opportunities.\n\nThe consequences they face are mixed. Some find prosperity while others struggle to adapt to new environments.",
+  "questions": [
+    {
+      "question_text": "The passage mainly discusses",
+      "choice_a": "the effects of economic development on society",
+      "choice_b": "urbanization trends in developing countries",
+      "choice_c": "migration patterns worldwide",
+      "choice_d": "industrialization and poverty",
+      "correct_choice": "A",
+      "tag": "mainIdea",
+      "target_phrase": null,
+      "target_paragraph": null,
+      "target_sentence": null,
+      "explanation": "本文全体が経済発展と社会変革の関係を論じている。"
+    },
+    {
+      "question_text": "According to the passage, rapid industrialization",
+      "choice_a": "reduces inequalities",
+      "choice_b": "increases prosperity for all",
+      "choice_c": "worsens existing inequalities",
+      "choice_d": "stops urban migration",
+      "correct_choice": "C",
+      "tag": "fact",
+      "target_phrase": null,
+      "target_paragraph": null,
+      "target_sentence": null,
+      "explanation": "第2段落に明記されている。"
+    },
+    {
+      "question_text": "The word \"facilitates\" in paragraph 2, sentence 1 is closest in meaning to",
+      "choice_a": "prevents",
+      "choice_b": "describes",
+      "choice_c": "enables",
+      "choice_d": "hinders",
+      "correct_choice": "C",
+      "tag": "vocab",
+      "target_phrase": "facilitates",
+      "target_paragraph": 2,
+      "target_sentence": 1,
+      "explanation": "facilitatesはenables（促進する・可能にする）と同義。"
+    },
+    {
+      "question_text": "The word \"exacerbates\" in paragraph 2, sentence 2 is closest in meaning to",
+      "choice_a": "reduces",
+      "choice_b": "worsens",
+      "choice_c": "creates",
+      "choice_d": "ignores",
+      "correct_choice": "B",
+      "tag": "usage",
+      "target_phrase": "exacerbates",
+      "target_paragraph": 2,
+      "target_sentence": 2,
+      "explanation": "exacerbatesはworsens（悪化させる）と同義。"
+    },
+    {
+      "question_text": "It can be inferred from the passage that urban migrants",
+      "choice_a": "all become prosperous",
+      "choice_b": "face varied outcomes",
+      "choice_c": "return to rural areas",
+      "choice_d": "avoid economic challenges",
+      "correct_choice": "B",
+      "tag": "inference",
+      "target_phrase": null,
+      "target_paragraph": null,
+      "target_sentence": null,
+      "explanation": "最終段落に「繁栄する者もいれば苦労する者もいる」と述べられている。"
+    }
+  ]
+}

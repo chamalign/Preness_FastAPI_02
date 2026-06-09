@@ -1,5 +1,6 @@
 .env
 .env.*
+!.env.example
 
 # Virtualenvs
 .venv*/
@@ -21,6 +22,7 @@ htmlcov/
 .idea/
 .vscode/
 .cursor/
+.claude/
 
 # Build artifacts
 build/
@@ -32,3 +34,27 @@ dist/
 
 # Local outputs
 outputs/
+
+# Proprietary prompt templates
+prompts/
+
+# Logs
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Local databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Secrets / keys (keep out of git)
+*.pem
+*.key
+*.p12
+*.pfx

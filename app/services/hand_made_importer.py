@@ -1,58 +1,32 @@
 """
-hand_made/*.txt (GPT 中間形式) を FastAPI import API 用 payload に変換する。
+hand_made/*.txt (GPT 中間形式) を FastAPI import API 用 payload に変換する.
 
-このモジュールは音声合成や DB 保存は行わず、txt -> dict/payload のみを担当する。
+このモジュールは音声合成や DB 保存は行わず, txt -> dict/payload のみを担当する.
 """
 
 from __future__ import annotations
 
 import json
 import random
-import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional, Sequence
+from typing import Any, Dict, Optional, Sequence
 
 
-REPO_ROOT_MARKER_DIR = ".venv-py313"
-
-
-def _find_repo_root(start: Path | None = None) -> Path:
-    """scripts/ や app/ からでもリポジトリ直下に辿り着くための簡易推定。"""
-    if start is None:
-        start = Path(__file__).resolve()
-    cur = start
-    for _ in range(10):
-        if (cur / REPO_ROOT_MARKER_DIR).is_dir():
-            return cur
-        if cur.parent == cur:
-            break
-        cur = cur.parent
-    # 最後の手段: このファイルから 3 階層戻る
+def _find_repo_root() -> Path:
+    """このファイル (app/services/hand_made_importer.py) から 3 階層上がリポジトリルート."""
     return Path(__file__).resolve().parents[3]
 
 
-def load_json_txt(path: Path) -> Dict[str, Any]:
-    """
-    hand_made の .txt を JSON として読み込む。
-
-    期待: すでに JSON 形式（null, [] , {}）になっていること。
-    """
-    # UTF-8 BOM は utf-8-sig で除去. 不正バイト列は strict で検知（� 混入を防ぐ）
-    try:
-        raw = path.read_text(encoding="utf-8-sig", errors="strict").strip()
-    except UnicodeError as e:
-        raise ValueError(f"Invalid UTF-8 in file {path}: {e}") from e
+def _load_json_raw(raw: str) -> Dict[str, Any]:
+    """JSON 文字列をパースして dict を返す（load_json_txt の内部処理）."""
     sanitized = _sanitize_newlines_in_json_strings(raw)
-
     try:
         obj = json.loads(sanitized)
         if not isinstance(obj, dict):
             raise ValueError("top-level JSON must be an object")
         return obj
     except json.JSONDecodeError:
-        # 複数 JSON オブジェクトが末尾で連結されている場合等に備える。
-        # ここでは "top-level dict を1つ返す" を最優先に、候補を抽出してマージする。
         objects = _extract_top_level_json_objects(sanitized)
         if not objects:
             raise
@@ -71,10 +45,77 @@ def load_json_txt(path: Path) -> Dict[str, Any]:
         return _merge_dicts_by_primary_list_key(parsed)
 
 
+def _is_plain_text_format(raw: str) -> bool:
+    """===ITEM:N=== または ===PASSAGE=== を含む plain-text フォーマットかどうかを判定する."""
+    head = raw[:200]
+    return head.startswith("===ITEM:") or head.startswith("===PASSAGE===")
+
+
+def _load_plain_text(raw: str, part_type: str, *, reading_kind: str = "single") -> Dict[str, Any]:
+    """plain-text (===ITEM:N=== 形式) を part_type に応じてパースする.
+
+    Args:
+        raw: ファイルの生テキスト
+        part_type: "listening_part_a" など
+        reading_kind: "single"（1パッセージ）または "multi"（複数パッセージ: FM/SM）
+    """
+    from app.services.generation.gemini_parser import (
+        parse_multi_passage_reading,
+        parse_p01_listening,
+        parse_p04_grammar_a,
+        parse_p05_grammar_b,
+        parse_p06_reading,
+    )
+
+    if part_type in ("listening_part_a", "listening_part_b", "listening_part_c"):
+        return parse_p01_listening(raw)
+    if part_type == "grammar_part_a":
+        return parse_p04_grammar_a(raw)
+    if part_type == "grammar_part_b":
+        return parse_p05_grammar_b(raw)
+    if part_type == "reading":
+        if reading_kind == "multi":
+            return parse_multi_passage_reading(raw, items_per_passage=10)
+        return parse_p06_reading(raw)
+    raise ValueError(f"Unsupported part_type for plain-text: {part_type}")
+
+
+def load_part_file(path: Path, part_type: str, *, reading_kind: str = "single") -> Dict[str, Any]:
+    """JSON か plain-text かを自動判定してファイルをパースする.
+
+    Args:
+        path: ファイルパス
+        part_type: "listening_part_a" / "grammar_part_a" / "reading" など
+        reading_kind: Reading のみ有効."single"（P06）または "multi"（FM06/SM06）
+    """
+    try:
+        raw = path.read_text(encoding="utf-8-sig", errors="strict").strip()
+    except UnicodeError as e:
+        raise ValueError(f"Invalid UTF-8 in file {path}: {e}") from e
+
+    if _is_plain_text_format(raw):
+        return _load_plain_text(raw, part_type, reading_kind=reading_kind)
+    return _load_json_raw(raw)
+
+
+def load_json_txt(path: Path) -> Dict[str, Any]:
+    """
+    hand_made の .txt を JSON として読み込む（後方互換のため残す）.
+
+    期待: すでに JSON 形式（null, [] , {}）になっていること.
+    plain-text 形式の場合は load_part_file を使うこと.
+    """
+    try:
+        raw = path.read_text(encoding="utf-8-sig", errors="strict").strip()
+    except UnicodeError as e:
+        raise ValueError(f"Invalid UTF-8 in file {path}: {e}") from e
+    return _load_json_raw(raw)
+
+
 def _sanitize_newlines_in_json_strings(text: str) -> str:
     """
-    JSON の文字列内に生改行が入っていると json.loads が落ちる。
-    そこで「ダブルクォートで囲まれている領域」内の改行等を JSON で許容されるエスケープに変換する。
+    JSON の文字列内に生改行が入っていると json.loads が落ちる.
+    そこで「ダブルクォートで囲まれている領域」内の改行等を JSON で許容されるエスケープに変換する.
     """
     out: list[str] = []
     in_str = False
@@ -98,8 +139,8 @@ def _sanitize_newlines_in_json_strings(text: str) -> str:
             if ch == '"':
                 # 現状のファイルには string 中に未エスケープの " が紛れていることがある
                 # 例: question_text: "The word "lucrative" in line 4 ..."
-                # JSON 的にはこの内側の " を \" に直す必要があるので、
-                # 次の非空白文字が , } ] のいずれかなら閉じクォート、それ以外は内部クォートとして扱う。
+                # JSON 的にはこの内側の " を \" に直す必要があるので,
+                # 次の非空白文字が , } ] のいずれかなら閉じクォート, それ以外は内部クォートとして扱う.
                 j = i + 1
                 while j < n and text[j] in " \t\r\n":
                     j += 1
@@ -143,7 +184,7 @@ def _sanitize_newlines_in_json_strings(text: str) -> str:
 
 def _extract_top_level_json_objects(text: str) -> list[str]:
     """
-    `{ ... }{ ... }` のように複数オブジェクトが連結されたケースから、top-level オブジェクト断片を抽出する。
+    `{ ... }{ ... }` のように複数オブジェクトが連結されたケースから, top-level オブジェクト断片を抽出する.
     """
     objs: list[str] = []
     i = 0
@@ -198,8 +239,8 @@ def _extract_top_level_json_objects(text: str) -> list[str]:
 
 def _merge_dicts_by_primary_list_key(dicts: Sequence[dict[str, Any]]) -> Dict[str, Any]:
     """
-    最上位が `{"items": [...]}` / `{"questions": [...]}` / `{"passages": [...]}` である想定で、
-    複数 dict をリストキーで連結して 1 dict にまとめる。
+    最上位が `{"items": [...]}` / `{"questions": [...]}` / `{"passages": [...]}` である想定で,
+    複数 dict をリストキーで連結して 1 dict にまとめる.
     """
     if not dicts:
         raise ValueError("empty dicts")
@@ -240,7 +281,7 @@ def _expected_fullmock_filenames() -> Dict[str, str]:
 
 
 def infer_fullmock_fileset(set_dir: Path) -> FullMockFileSet:
-    """set_dir 内の 6 ファイルを推定して返す。"""
+    """set_dir 内の 6 ファイルを推定して返す."""
     if not set_dir.is_dir():
         raise ValueError(f"set_dir must be a directory: {set_dir}")
 
@@ -267,10 +308,10 @@ def infer_fullmock_fileset(set_dir: Path) -> FullMockFileSet:
 
 def normalize_fullmock_title(dir_name: str, *, kind: str) -> str:
     """
-    title はフォルダ名準拠。
+    title はフォルダ名準拠.
 
-    現状は `hand_made/Full_Mock/` と `hand_made/Short_Mock/` が 1 セットだが、
-    将来 `Full_Mock_01, Full_Mock_02 ...` に展開する前提で、現行のベース名は _01 と解釈する。
+    現状は `hand_made/Full_Mock/` と `hand_made/Short_Mock/` が 1 セットだが,
+    将来 `Full_Mock_01, Full_Mock_02 ...` に展開する前提で, 現行のベース名は _01 と解釈する.
     """
     if kind == "full" and dir_name == "Full_Mock":
         return "Full_Mock_01"
@@ -280,15 +321,15 @@ def normalize_fullmock_title(dir_name: str, *, kind: str) -> str:
 
 
 def build_full_parts_payload(set_dir: Path, *, title: Optional[str] = None, kind: str) -> Dict[str, Any]:
-    """FM/SM の full_parts payload を作る（POST /import/full_mock または /import/short_mock 用）。"""
+    """FM/SM の full_parts payload を作る（POST /import/full_mock または /import/diagnostics 用）."""
     fileset = infer_fullmock_fileset(set_dir)
     full_parts: Dict[str, Any] = {
-        "listening_part_a": load_json_txt(fileset.listening_part_a),
-        "listening_part_b": load_json_txt(fileset.listening_part_b),
-        "listening_part_c": load_json_txt(fileset.listening_part_c),
-        "grammar_part_a": load_json_txt(fileset.grammar_part_a),
-        "grammar_part_b": load_json_txt(fileset.grammar_part_b),
-        "reading": load_json_txt(fileset.reading),
+        "listening_part_a": load_part_file(fileset.listening_part_a, "listening_part_a"),
+        "listening_part_b": load_part_file(fileset.listening_part_b, "listening_part_b"),
+        "listening_part_c": load_part_file(fileset.listening_part_c, "listening_part_c"),
+        "grammar_part_a":   load_part_file(fileset.grammar_part_a,   "grammar_part_a"),
+        "grammar_part_b":   load_part_file(fileset.grammar_part_b,   "grammar_part_b"),
+        "reading":          load_part_file(fileset.reading,           "reading", reading_kind="multi"),
     }
     if title is None:
         title = normalize_fullmock_title(set_dir.name, kind=kind)
@@ -314,7 +355,7 @@ def _default_used_reading_record_path(repo_root: Path) -> Path:
 
 def _read_used_reading_record(record_path: Path) -> set[str]:
     """
-    record の破損を恐れて例外は握りつぶす。
+    record の破損を恐れて例外は握りつぶす.
     """
     if not record_path.is_file():
         return set()
@@ -336,13 +377,13 @@ def _write_used_reading_record(record_path: Path, *, used_relpaths: Sequence[str
 
 def infer_practice_part_type_from_file(file_path: Path) -> str:
     """
-    part_type をファイルの親ディレクトリから推定する。
+    part_type をファイルの親ディレクトリ名から推定する.
     - Listening_A -> listening_part_a
     - Listening_B -> listening_part_b
     - Listening_C -> listening_part_c
     - Grammar_A -> grammar_part_a
     - Grammar_B -> grammar_part_b
-    - Reading_Short / Reading_Long -> reading
+    - Reading / Reading_Short / Reading_Long -> reading
     """
     parent = file_path.parent.name
     mapping = {
@@ -351,6 +392,7 @@ def infer_practice_part_type_from_file(file_path: Path) -> str:
         "Listening_C": "listening_part_c",
         "Grammar_A": "grammar_part_a",
         "Grammar_B": "grammar_part_b",
+        "Reading": "reading",
         "Reading_Short": "reading",
         "Reading_Long": "reading",
     }
@@ -361,8 +403,7 @@ def infer_practice_part_type_from_file(file_path: Path) -> str:
 
 def build_practice_part_payload_from_file(file_path: Path) -> Dict[str, Any]:
     part_type = infer_practice_part_type_from_file(file_path)
-    part_data = load_json_txt(file_path)
-    # listening_b などでのプレースホルダ対応（必要なもののみここで吸収する）
+    part_data = load_part_file(file_path, part_type, reading_kind="single")
     if part_type == "listening_part_b" and isinstance(part_data, dict):
         part_data = _fix_listening_b_placeholders(part_data)
     return {"part_type": part_type, "part_data": part_data}
@@ -370,7 +411,7 @@ def build_practice_part_payload_from_file(file_path: Path) -> Dict[str, Any]:
 
 def _fix_listening_b_placeholders(part_data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Listening_B/01 のみプレースホルダが残っている想定で補正する。
+    Listening_B/01 のみプレースホルダが残っている想定で補正する.
     - "Question [number]." -> "Question {idx}."
     - "[question_text]" -> item["question_text"]
     """
@@ -413,8 +454,8 @@ def pick_unused_reading_file(
     mark_used: bool = True,
 ) -> Path:
     """
-    Reading_Short / Reading_Long から「未使用のみ」をランダム選択して返す。
-    - 未使用が尽きた場合は allow_all_if_exhausted で挙動を切替。
+    Reading_Short / Reading_Long から「未使用のみ」をランダム選択して返す.
+    - 未使用が尽きた場合は allow_all_if_exhausted で挙動を切替.
     """
     if rng is None:
         rng = random.Random()

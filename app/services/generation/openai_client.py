@@ -1,5 +1,3 @@
-"""OpenAI API client for problem generation (Responses API)."""
-
 import json
 import logging
 import time
@@ -180,7 +178,7 @@ def _chat_completions_create(
 
 def generate_problem_json(prompt: str, config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
-    OpenAI Responses API を 1 回呼び、返却テキストを JSON パースして dict を返す.
+    OpenAI Responses API を 1 回呼び, 返却テキストを JSON パースして dict を返す.
     失敗時は例外を投げる. リトライは呼び出し側で行う.
     """
     from openai import OpenAI
@@ -228,7 +226,7 @@ def generate_problem_json(prompt: str, config: Optional[Dict[str, Any]] = None) 
     if isinstance(text_block, dict) and text_block:
         kwargs["text"] = text_block
 
-    # GPT-5 系の reasoning モードでは temperature が未対応のことがあるため、
+    # GPT-5 系の reasoning モードでは temperature が未対応のことがあるため,
     # reasoning.effort が none でないときは temperature を渡さない（400 時は剥がして再試行もする）.
     temperature = cfg.get("temperature")
     if temperature is not None and (effort in (None, "none")):
@@ -251,8 +249,8 @@ def generate_problem_json(prompt: str, config: Optional[Dict[str, Any]] = None) 
         )
 
     text_stripped = text.strip()
-    # モデルがコードフェンス（例: ```json ... ```）や前置説明を付けるケースがあるため、
-    # JSON先頭「{」〜末尾「}」を抽出してパースする。
+    # モデルがコードフェンス（例: ```json ... ```）や前置説明を付けるケースがあるため,
+    # JSON先頭「{」〜末尾「}」を抽出してパースする.
     start = text_stripped.find("{")
     end = text_stripped.rfind("}")
     if start < 0 or end < 0 or end <= start:

@@ -48,6 +48,7 @@ def _exercise_orm_to_dict(exercise: Exercise) -> Dict[str, Any]:
         question_sets.append({
             "display_order": qs.display_order,
             "passage": qs.passage,
+            "passage_theme": qs.passage_theme,
             "conversation_audio_url": qs.audio_url,
             "scripts": qs.scripts,
             "questions": questions,
@@ -86,23 +87,24 @@ def get_exercise_by_id(exercise_id: int) -> Optional[Dict[str, Any]]:
 
 def create_exercise_from_payload(payload: ExerciseCreate) -> List[int]:
     """
-    ExerciseCreate を基に、question_set ごとに 1 件の Exercise を作成し、
-    発番した exercise_id の一覧を返す.
+    ExerciseCreate を基に, 1 件の Exercise を作成し,
+    その配下に question_sets / questions をぶら下げる.
+    発番した exercise_id (1件) の一覧を返す.
     """
-    created_ids: List[int] = []
     with get_db() as session:
-        for qs in payload.question_sets:
-            exercise = Exercise(
-                section_type=payload.section_type,
-                part_type=payload.part_type,
-            )
-            session.add(exercise)
-            session.flush()
+        exercise = Exercise(
+            section_type=payload.section_type,
+            part_type=payload.part_type,
+        )
+        session.add(exercise)
+        session.flush()
 
+        for qs in payload.question_sets:
             eqs = ExerciseQuestionSet(
                 exercise_id=exercise.id,
                 display_order=qs.display_order,
                 passage=qs.passage,
+                passage_theme=qs.passage_theme,
                 audio_url=qs.conversation_audio_url,
                 scripts=_scripts_for_db(qs.scripts),
             )
@@ -131,6 +133,5 @@ def create_exercise_from_payload(payload: ExerciseCreate) -> List[int]:
                 )
                 session.add(eq)
 
-            created_ids.append(exercise.id)
-
-    return created_ids
+        created_ids: List[int] = [exercise.id]
+        return created_ids

@@ -24,7 +24,7 @@ class GenerationJobCreate(BaseModel):
     def part_type_required_for_practice(self):
         if self.job_type == "practice":
             if not self.part_type or self.part_type not in PART_TYPES:
-                raise ValueError("job_type が practice のときは part_type を指定し、listening_part_a / listening_part_b / listening_part_c / grammar_part_a / grammar_part_b / reading のいずれかにしてください")
+                raise ValueError("job_type が practice のときは part_type を指定し, listening_part_a / listening_part_b / listening_part_c / grammar_part_a / grammar_part_b / reading のいずれかにしてください")
         return self
 
 

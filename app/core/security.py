@@ -16,7 +16,7 @@ async def verify_api_key(
     settings=Depends(get_settings),
 ) -> None:
     """
-    Horiba_based_FastAPI.md に準拠した API Key 認証（問題投入用）。
+    Horiba_based_FastAPI.md に準拠した API Key 認証（問題投入用）.
 
     - Authorization: Bearer <CONTENT_SOURCE_API_KEY>
     - または X-Api-Key: <CONTENT_SOURCE_API_KEY>
@@ -36,7 +36,7 @@ async def verify_analysis_api_key(
     settings=Depends(get_settings),
 ) -> None:
     """
-    分析レポート API 用の認証（問題投入とは別キー）。
+    分析レポート API 用の認証（問題投入とは別キー）.
 
     - Authorization: Bearer <ANALYSIS_API_KEY>
     - または X-Api-Key: <ANALYSIS_API_KEY>

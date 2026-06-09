@@ -15,4 +15,5 @@ boto3
 azure-cognitiveservices-speech
 pyyaml
 pytest
+pytest-asyncio
 

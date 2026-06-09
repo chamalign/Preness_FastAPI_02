@@ -1,4 +1,3 @@
-"""Database session for analysis jobs."""
 from contextlib import contextmanager
 from typing import Generator
 
@@ -23,7 +22,6 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 @contextmanager
 def get_db() -> Generator[Session, None, None]:
-    """Provide a transactional scope for DB operations."""
     session = SessionLocal()
     try:
         yield session
@@ -36,12 +34,12 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_db() -> None:
-    """Create tables if not exists. Add analysis_jobs.job_type for existing DBs."""
     Base.metadata.create_all(bind=engine)
     _ensure_analysis_jobs_job_type()
     _ensure_scripts_columns()
     _ensure_conversation_audio_url_columns()
     _ensure_scripts_on_question_sets()
+    _ensure_passage_theme_on_question_sets()
 
 
 def _ensure_scripts_columns() -> None:
@@ -95,8 +93,69 @@ def _ensure_scripts_on_question_sets() -> None:
         pass
 
 
+def _ensure_passage_theme_on_question_sets() -> None:
+    """
+    mock_question_sets / exercise_question_sets に passage_theme を用意する (idempotent).
+
+    既存DBに旧カラム名のみある場合は PostgreSQL で RENAME する.
+    """
+    try:
+        from sqlalchemy import text
+
+        dialect = engine.dialect.name
+        with engine.connect() as conn:
+            for table in ("mock_question_sets", "exercise_question_sets"):
+                if dialect == "postgresql":
+                    conn.execute(
+                        text(
+                            f"""
+                            DO $body$
+                            BEGIN
+                              IF EXISTS (
+                                SELECT 1 FROM information_schema.columns
+                                WHERE table_schema = 'public' AND table_name = '{table}'
+                                  AND column_name = 'passage_thema'
+                              ) AND NOT EXISTS (
+                                SELECT 1 FROM information_schema.columns
+                                WHERE table_schema = 'public' AND table_name = '{table}'
+                                  AND column_name = 'passage_theme'
+                              ) THEN
+                                ALTER TABLE {table} RENAME COLUMN passage_thema TO passage_theme;
+                              ELSIF NOT EXISTS (
+                                SELECT 1 FROM information_schema.columns
+                                WHERE table_schema = 'public' AND table_name = '{table}'
+                                  AND column_name = 'passage_theme'
+                              ) THEN
+                                ALTER TABLE {table} ADD COLUMN passage_theme VARCHAR(512);
+                              END IF;
+                            END
+                            $body$;
+                            """
+                        )
+                    )
+                else:
+                    try:
+                        conn.execute(
+                            text(
+                                f"ALTER TABLE {table} RENAME COLUMN passage_thema TO passage_theme"
+                            )
+                        )
+                    except Exception:
+                        pass
+                    try:
+                        conn.execute(
+                            text(
+                                f"ALTER TABLE {table} ADD COLUMN passage_theme VARCHAR(512)"
+                            )
+                        )
+                    except Exception:
+                        pass
+            conn.commit()
+    except Exception:
+        pass
+
+
 def _ensure_analysis_jobs_job_type() -> None:
-    """PostgreSQL: add job_type column if missing (idempotent)."""
     try:
         from sqlalchemy import text
 

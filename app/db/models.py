@@ -1,4 +1,3 @@
-"""Analysis job and content (mock/exercise) models."""
 import uuid
 from datetime import datetime
 from typing import Any, List, Optional
@@ -105,6 +104,7 @@ class MockQuestionSet(Base):
     )
     display_order: Mapped[int] = mapped_column(Integer, nullable=False)
     passage: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    passage_theme: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     audio_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
     scripts: Mapped[Optional[List[Any]]] = mapped_column(JSON, nullable=True)
     part: Mapped["MockPart"] = relationship("MockPart", back_populates="question_sets")
@@ -169,6 +169,7 @@ class ExerciseQuestionSet(Base):
     )
     display_order: Mapped[int] = mapped_column(Integer, nullable=False)
     passage: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    passage_theme: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     audio_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
     scripts: Mapped[Optional[List[Any]]] = mapped_column(JSON, nullable=True)
     exercise: Mapped["Exercise"] = relationship("Exercise", back_populates="question_sets")

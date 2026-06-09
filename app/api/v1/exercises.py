@@ -25,7 +25,7 @@ async def create_exercises(
 ) -> ExerciseCreateResponse:
     """
     セクション別演習の問題投入エンドポイント.
-    受け取った内容を基に question_set ごとに Exercise を作成し、その ID 一覧を返す.
+    受け取った内容を基に question_set ごとに Exercise を作成し, その ID 一覧を返す.
     """
     exercise_ids = create_exercise_from_payload(payload)
     return ExerciseCreateResponse(

@@ -1,5 +1,5 @@
 """
-full_parts の listening 各 item について script を音声合成し S3 にアップロードし、
+full_parts の listening 各 item について script を音声合成し S3 にアップロードし,
 url_map と block_starts_per_part を返す.
 音声合成またはS3アップロード失敗時は ValueError を送出する.
 """
@@ -41,8 +41,8 @@ def build_audio_url_map(
     s3_prefix_override: Optional[str] = None,
 ) -> Tuple[Dict[str, str], Dict[str, List[int]]]:
     """
-    full_parts の listening 3 パートについて、各 item の listening_script を
-    音声合成して S3 にアップロードし、(url_map, block_starts_per_part) を返す.
+    full_parts の listening 3 パートについて, 各 item の listening_script を
+    音声合成して S3 にアップロードし, (url_map, block_starts_per_part) を返す.
     分割時: キーは "part_a:1:passage", "part_a:1:question" など.
     非分割時: キーは "part_a:1" など.
     音声合成またはS3アップロード失敗時は ValueError.

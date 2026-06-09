@@ -1,0 +1,25 @@
+{
+  "passage": "Economic development has transformed societies worldwide. Scholars study its long-term effects on human welfare.\n\nThe process by which growth [U1]facilitates[/U1] social change is complex. Rapid industrialization often [U2]exacerbates[/U2] existing inequalities between urban and rural populations.\n\nUrban migration accelerates these transformations. People who migrate to cities seek better economic opportunities.\n\nThe consequences they face are mixed. Some find prosperity while others struggle to adapt to new environments.",
+  "questions": [
+    {
+      "question_text": "The passage mainly discusses",
+      "tag": "mainIdea"
+    },
+    {
+      "question_text": "According to the passage, rapid industrialization",
+      "tag": "fact"
+    },
+    {
+      "question_text": "The word \"[U1]facilitates[/U1]\" in paragraph 2, sentence 1 is closest in meaning to",
+      "tag": "vocab"
+    },
+    {
+      "question_text": "The word \"[U2]exacerbates[/U2]\" in paragraph 2, sentence 2 is closest in meaning to",
+      "tag": "usage"
+    },
+    {
+      "question_text": "It can be inferred from the passage that urban migrants",
+      "tag": "inference"
+    }
+  ]
+}

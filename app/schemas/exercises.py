@@ -1,8 +1,8 @@
-from typing import List, Optional
+from typing import List
 
 from pydantic import BaseModel, Field
 
-from app.schemas.mocks import Question, QuestionSet
+from app.schemas.mocks import QuestionSet
 
 
 class ExerciseCreate(BaseModel):

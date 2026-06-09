@@ -32,7 +32,7 @@ class Question(BaseModel):
     @classmethod
     def normalize_correct_choice(cls, v: object) -> object:
         """
-        モデル出力の揺れ（例: "A", "B", "b." など）を a/b/c/d に正規化する。
+        モデル出力の揺れ（例: "A", "B", "b." など）を a/b/c/d に正規化する.
         """
         if isinstance(v, str):
             import re
@@ -48,6 +48,7 @@ class Question(BaseModel):
 class QuestionSet(BaseModel):
     display_order: int
     passage: Optional[str] = None
+    passage_theme: Optional[str] = None
     conversation_audio_url: Optional[str] = None
     scripts: Optional[List[ScriptTurn]] = None
     questions: List[Question] = Field(..., min_length=1)

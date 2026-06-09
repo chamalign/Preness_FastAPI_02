@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict
 
 from app.db import get_db, init_db
 from app.db.models import GenerationJob
@@ -15,9 +14,10 @@ from app.services.generation import (
     get_p_stem_for_part_type,
     load_prompt,
     generate_problem_json,
-    merge_fm06,
     merge_full_mock_parts,
     merge_short_mock_parts,
+)
+from app.services.generation.import_pipeline import (
     process_mock_from_full_parts,
     process_practice_from_part_data,
 )
@@ -26,15 +26,14 @@ from app.workers.celery_app import celery_app
 logger = logging.getLogger(__name__)
 
 
-# FM stem -> full_parts キー対応 (7 本中 FM06 は Long3+Short2 をマージ)
+# FM stem -> full_parts キー対応 (6 本)
 FM_STEM_TO_KEY = {
     "FM01_Listening_Part_A": "listening_part_a",
     "FM02_Listening_Part_B": "listening_part_b",
     "FM03_Listening_Part_C": "listening_part_c",
     "FM04_Grammar_Part_A": "grammar_part_a",
     "FM05_Grammar_Part_B": "grammar_part_b",
-    "FM06_Reading_Long3": "_long3",
-    "FM06_Reading_Short2": "_short2",
+    "FM06_Reading": "reading",
 }
 
 
@@ -56,7 +55,7 @@ def _update_job_status(job_id: uuid.UUID, status: str, result: dict | None = Non
 @celery_app.task(bind=True)
 def run_full_mock_generation(self, title: str, job_id: str) -> None:
     """
-    7 本プロンプトで生成 → FM06 マージ → full_parts → 音声→S3 → payload → DB 保存.
+    6 本プロンプトで生成 → full_parts → 音声→S3 → payload → DB 保存.
     job_id は UUID 文字列. 完了時に GenerationJob を更新する.
     """
     try:
@@ -77,14 +76,9 @@ def run_full_mock_generation(self, title: str, job_id: str) -> None:
             try:
                 prompt = load_prompt(stem)
                 data = generate_problem_json(prompt)
-                if stem == "FM06_Reading_Long3":
-                    parts_raw["_long3"] = data
-                elif stem == "FM06_Reading_Short2":
-                    parts_raw["_short2"] = data
-                else:
-                    key = FM_STEM_TO_KEY.get(stem)
-                    if key:
-                        parts_raw[key] = data
+                key = FM_STEM_TO_KEY.get(stem)
+                if key:
+                    parts_raw[key] = data
                 break
             except Exception as e:
                 logger.warning("Attempt %s failed for %s: %s", attempt + 1, stem, e)
@@ -93,14 +87,9 @@ def run_full_mock_generation(self, title: str, job_id: str) -> None:
                 _update_job_status(uid, "failed", error_message=f"Generation failed for {stem}: {e}")
                 return
 
-    if "_long3" not in parts_raw or "_short2" not in parts_raw:
-        _update_job_status(uid, "failed", error_message="FM06 Long3 or Short2 missing")
-        return
-
-    try:
-        fm06_reading = merge_fm06(parts_raw["_long3"], parts_raw["_short2"])
-    except ValueError as e:
-        _update_job_status(uid, "failed", error_message=str(e))
+    missing = set(FM_STEM_TO_KEY.values()) - set(parts_raw.keys())
+    if missing:
+        _update_job_status(uid, "failed", error_message=f"FM パーツが不足しています: {missing}")
         return
 
     full_parts = merge_full_mock_parts(
@@ -109,7 +98,7 @@ def run_full_mock_generation(self, title: str, job_id: str) -> None:
         parts_raw["listening_part_c"],
         parts_raw["grammar_part_a"],
         parts_raw["grammar_part_b"],
-        fm06_reading,
+        parts_raw["reading"],
     )
 
     try:
@@ -117,6 +106,7 @@ def run_full_mock_generation(self, title: str, job_id: str) -> None:
             full_parts=full_parts,
             title=title,
             audio_path_id=job_id,
+            expected_reading_passages=5,
         )
     except Exception as e:
         logger.exception("Full Mock processing failed: %s", e)
@@ -187,6 +177,7 @@ def run_short_mock_generation(self, title: str, job_id: str) -> None:
             full_parts=full_parts,
             title=title,
             audio_path_id=job_id,
+            expected_reading_passages=2,
         )
     except Exception as e:
         logger.exception("Short Mock processing failed: %s", e)

@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 def _default_prompts_dir() -> Path:
     """FastAPI ルートからの prompts/completed 相対パス."""
-    return Path(__file__).resolve().parent.parent.parent / "prompts" / "completed"
+    return Path(__file__).resolve().parent.parent.parent / "prompts"
 
 
 class Settings(BaseSettings):
@@ -39,10 +39,10 @@ class Settings(BaseSettings):
         validation_alias="GENERATION_PROMPTS_DIR",
         description="プロンプト .txt が入ったディレクトリ (prompts/completed)",
     )
-    # Azure Speech (Optional)
+    # Azure Speech（任意）
     azure_speech_key: Optional[str] = Field(default=None, validation_alias="AZURE_SPEECH_KEY")
     azure_speech_region: Optional[str] = Field(default=None, validation_alias="AZURE_SPEECH_REGION")
-    # AWS S3 (Optional)
+    # AWS S3（任意）
     aws_access_key_id: Optional[str] = Field(default=None, validation_alias="AWS_ACCESS_KEY_ID")
     aws_secret_access_key: Optional[str] = Field(default=None, validation_alias="AWS_SECRET_ACCESS_KEY")
     s3_bucket: Optional[str] = Field(default=None, validation_alias="S3_BUCKET")

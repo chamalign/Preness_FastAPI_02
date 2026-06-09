@@ -1,6 +1,6 @@
 # Preness Content Ingestion API
 
-問題投入・分析レポート・**問題生成 (FM / SM / P)** 用の FastAPI アプリケーション. 外部の問題生成フローからは Celery ジョブで OpenAI 等を使い模試・演習を生成し mocks / exercises に保存する. 従来どおり問題投入 API と分析ジョブも提供し, Rails は GET で同期・参照する.
+問題投入・分析レポート・**問題生成 (FM / SM / P)** 用の FastAPI アプリケーション. 外部の問題生成フローからは Celery ジョブで OpenAI 等を使い模試・演習を生成し mocks / exercises に保存する. **分析レポートは同一 HTTP リクエスト内で同期処理**し, スコア計算・GPT 文面生成のあと Rails へ結果を POST する（Celery は使わない）. mocks / exercises については Rails が GET で同期・参照する.
 
 ---
 
@@ -39,16 +39,16 @@ FastAPI/
     ├── services/
     │   ├── exercise_service.py
     │   ├── mock_service.py
+    │   ├── rails_client.py      # Rails への POST（分析レポート・mocks / exercises 転送）
     │   ├── analysis/
+    │   │   ├── exam_inference.py
     │   │   ├── job_store.py
-    │   │   ├── report_generator.py
-    │   │   └── report_generator_short.py
+    │   │   └── report_generator.py
     │   ├── generation/          # openai_client, import_pipeline, audio_upload, *_merger 等
     │   ├── speech/              # Azure Speech (Listening TTS)
     │   └── storage/             # s3_client 等
     └── workers/
-        ├── celery_app.py
-        ├── analysis_tasks.py
+        ├── celery_app.py        # 生成ジョブ用（include は generation_tasks のみ）
         └── generation_tasks.py  # FM / SM / P 生成タスク
 ```
 
@@ -76,11 +76,11 @@ FastAPI/
 
 | エンドポイント | 入力元 | 受け取るデータ | 出力 |
 |----------------|--------|----------------|------|
-| **POST** /api/v1/analysis/jobs | Rails（Full 模試終了後） | `attempt_id`, `exam_type`, … `answers[]`, `items[]` | 202 + `{ job_id, job_type: "full", status }` |
-| **POST** /api/v1/analysis/short/jobs | Rails（Short 模試） | 85 問 `items[]`, `passages` 2×10, `goal_score` null 可 等 | 202 + `{ job_id, job_type: "short", status }` |
-| **GET** /api/v1/analysis/jobs/{job_id} | Rails 等（ポーリング） | パス: `job_id`. API Key | 200 + `job_type`, `status`, `result?`. full / short で `result` の形が異なる |
+| **POST** /api/v1/analysis/jobs | Rails（Full / Short 共通） | `goal`（任意）, キー固定の `parts_accuracy`, `tags`（本文に `exam_type` は含めない. `parts_accuracy` の問題数から full / short を判定） | **200** + `{ job_id, job_type`（推定結果）, `status: "completed" }`. 問題数が既知パターンと一致しない場合は **422**. レポート生成失敗時は **500**（`{ "status": "error", "errors": [...] }`） |
 
-- 分析 API は **ANALYSIS_API_KEY**（問題投入用の CONTENT_SOURCE_API_KEY とは別）で認証する.
+- 分析 API は **ANALYSIS_API_KEY**（問題投入用の CONTENT_SOURCE_API_KEY とは別）で認証する（`Authorization: Bearer` または `X-Api-Key`）.
+- **同一リクエスト内**でスコア計算・GPT 文面生成まで行い, 続けて FastAPI が **`RAILS_API_BASE_URL/api/v1/analysis_reports`** に **`job_id`**, **`exam_type`**, **`scores`**（`listening` / `structure` / `reading` / `total` のみ. **`max` は送らない**）, **`narratives`** を POST する（`RAILS_API_BASE_URL` 未設定時はスキップ）. 認証は **RAILS_API_KEY**（なければ **CONTENT_SOURCE_API_KEY**）の Bearer. Rails 側 POST が失敗しても API は **200** を返しうる（警告ログのみ）.
+- リクエスト JSON の具体例はリポジトリ直下の **`analysis_full_payload.json`** / **`analysis_short_payload.json`** を参照. Short は `Reading_01` / `Reading_02` のみでも可（`Reading_03`〜`05` は省略時 0 問として補完）. Full は引き続き 5 パッセージすべて必須.
 
 ### 4. 問題生成ジョブ（generation）
 
@@ -100,14 +100,15 @@ FastAPI/
 | エンドポイント | 受け取るデータ | 出力 |
 |----------------|----------------|------|
 | **POST** /api/v1/import/full_mock | `title`, `full_parts`（`listening_part_a` … `reading` の 6 キー必須） | 201 + mocks の POST と同形 |
-| **POST** /api/v1/import/short_mock | 同上 | 201 + 同上 |
+| **POST** /api/v1/import/diagnostics | 同上（実力診断用）. 完了後 Rails へは `POST /api/v1/diagnostics` で転送 | 201 + 同上 |
 | **POST** /api/v1/import/practice | `part_type`, `part_data`（生成ジョブの practice と同形） | 201 + exercises の POST と同形 |
 
 ### 6. 共通・エラー
 
 - **422** バリデーションエラー（グローバルハンドラ）: `{ "status": "error", "errors": ["<フィールドパス>: <メッセージ>", ...] }`
 - **401** 認証エラー: FastAPI 既定により `{ "detail": { "status": "error", "errors": ["Unauthorized"] } }`（`Authorization: Bearer` または `X-Api-Key`）
-- **404** mocks / exercises / generation ジョブ: 多くは `{ "detail": "<メッセージ>" }`. 分析ジョブ GET の未存在は `detail` がオブジェクトになる場合あり
+- **404** mocks / exercises / generation ジョブ: 多くは `{ "detail": "<メッセージ>" }`
+- **500** 分析レポート `POST /api/v1/analysis/jobs`: スコア計算・GPT 呼び出し・DB 更新などの途中で例外が発生したとき `{ "status": "error", "errors": ["<メッセージ>"] }`（ジョブは `failed` に更新）
 
 ---
 
@@ -117,32 +118,33 @@ FastAPI/
 
 | 用途 | 呼び出し元の目安 |
 |------|------------------|
-| 分析レポートの総評・強み・課題 | `app/services/analysis/report_generator.py` の `_generate_narratives_with_gpt()`（モデル名はコード内の指定どおり, 例: **gpt-5-mini**） |
+| 分析レポートの総評・強み・課題 | `app/services/analysis/report_generator.py` の `_generate_narratives_with_gpt()`（モデル名はコード内の指定どおり） |
 | 模試・演習の問題生成 | `app/services/generation/`（Celery `generation_tasks` から） |
 
-- **分析**: **OPENAI_API_KEY** 未設定時、および OpenAI 呼び出しエラー（例: 429 など）時はナラティブがプレースホルダー文言になり, ジョブ自体は完了しうる.
-- **問題生成**: **OPENAI_API_KEY** 必須（未設定時は失敗しうる）.
-- **分析と生成の API 統一**: 分析ナラティブは現状 **Chat Completions**（`report_generator*.py`）. 問題生成は **Responses API**. 分析も Responses に寄せるリファクタは別 PR で扱う想定.
+- **分析**: キー解決順は `app/services/analysis/report_generator.py` の `_generate_narratives_with_gpt`（**ANALYSIS_OPENAI_API_KEY** 等）. いずれも未設定、または OpenAI 呼び出しエラー（例: 429 など）時はナラティブがプレースホルダー文言になり, HTTP 応答は **200** で完了しうる.
+- **問題生成**: **OPENAI_API_KEY**（または **GENERATION_OPENAI_API_KEY**）必須（未設定時は失敗しうる）.
+- **分析ナラティブ**: OpenAI **Responses API**（`report_generator.py`）.
 
 #### OpenAI トラブルシュート（生成・分析）
 
 | 症状 | 確認すること |
 |------|----------------|
-| `OPENAI_API_KEY が未設定` | Celery worker を起動したシェルで `OPENAI_API_KEY` が export されているか. **ワーカー側**にキーが必要. |
+| `OPENAI_API_KEY が未設定`（**問題生成**） | Celery worker を起動したシェルで `OPENAI_API_KEY`（または `GENERATION_OPENAI_API_KEY`）が export されているか. **ワーカー側**にキーが必要. |
+| 分析ナラティブが常にプレースホルダー | **uvicorn（API サーバ）** の環境で `ANALYSIS_OPENAI_API_KEY` または `OPENAI_API_KEY` 等が渡っているか（解決順は `report_generator.py` 参照）. 分析は Celery を経由しない. |
 | env を変えたのに反映されない | [app/core/config.py](app/core/config.py) の `get_settings()` は `@lru_cache` のため **プロセス再起動**（uvicorn / Celery worker）が必要. |
 | `DuplicateNodenameWarning: celery@Mac` | 同一 Redis を見る **Celery worker が複数**起動している可能性. `pgrep -af "celery -A app.workers.celery_app"` で列挙し、開発時は 1 本にするか `celery ... -n worker1@%h` で nodename を分ける. |
 | `400` / `Unsupported parameter: 'temperature'` | [api_config.yaml](api_config.yaml) の `reasoning.effort` と `temperature` の組み合わせを確認. 生成クライアントは公式の制約に合わせてパラメータを組み立てる（詳細は `api_config.yaml` 先頭コメント）. |
 | `429` / `insufficient_quota` | OpenAI ダッシュボードの **課金・利用上限**. コード側のリトライでは解消しない（generation ジョブは `failed` に更新され止まる）. |
 | `429` / レート制限（quota 以外） | 短い待機後の再試行が [openai_client](app/services/generation/openai_client.py) で行われうる（完全ではないため、負荷が高い場合はジョブ間隔を空ける）. |
 
-**venv の一致**: 本番・ローカルとも、API / Celery が **同じ Python 環境**（例: 同じ `.venv-py313`）で動いているか確認する. システムの `celery` とプロジェクト venv の `celery` が混在すると依存や env がずれる.
+**venv の一致**: 本番・ローカルとも、API（uvicorn）と Celery が **同じ Python 仮想環境**で動いているか確認する. システムの `celery` とプロジェクト venv の `celery` が混在すると依存や env がずれる.
 
 #### OpenAI をアプリ外で切り分ける（最小 Responses 呼び出し）
 
 同一マシン・同一 `OPENAI_API_KEY` で、プロジェクトの venv を有効化したうえで次を実行する（プロンプトはプレースホルダ）.
 
 ```bash
-.venv-py313/bin/python -c "
+.venv/bin/python -c "
 from openai import OpenAI
 c = OpenAI()
 r = c.responses.create(
@@ -183,12 +185,9 @@ Listening パートの音声合成に **Azure Speech** を利用する（`app/se
 [問題生成アプリ]  --POST (模試/演習 JSON)-->  FastAPI  --保存-->  PostgreSQL (mocks / exercises)
 [Rails]           --GET (一覧・1 件)------>  FastAPI  --参照-->  上記 DB
 
-[Rails (模試終了)] --POST (attempt_id, answers, items)-->  FastAPI  --ジョブ作成-->  PostgreSQL (analysis_jobs)
-                                                                    --キュー投入-->  Redis → Celery Worker
-                                                                                         --採点--> スコア・tag_accuracy
-                                                                                         --OpenAI API（任意）--> 総評・強み・課題
-                                                                                         --> 結果を analysis_jobs に保存
-[Rails]           --GET (job_id)------------------------->  FastAPI  --参照-->  analysis_jobs → スコア・総評を返す
+[Rails (模試終了)] --POST (goal, parts_accuracy, tags)-->  FastAPI（同期: 1 リクエスト内）
+        換算スコア計算 → OpenAI（任意）で総評・強み・課題 → PostgreSQL (analysis_jobs) に保存
+[Rails]           <--POST (job_id, exam_type, scores, narratives)-----------  FastAPI  --Rails受け口-->  /api/v1/analysis_reports
 ```
 
 ---
@@ -198,13 +197,15 @@ Listening パートの音声合成に **Azure Speech** を利用する（`app/se
 | 変数名 | 用途 |
 |--------|------|
 | CONTENT_SOURCE_API_KEY | 問題投入・mocks/exercises 取得・**生成ジョブ**用 API Key |
-| ANALYSIS_API_KEY | 分析ジョブ投入・結果取得用 API Key（別キー） |
+| ANALYSIS_API_KEY | 分析ジョブ投入用 API Key（別キー） |
+| RAILS_API_BASE_URL | （任意）設定時, 分析完了後に Rails へ結果 POST |
+| RAILS_API_KEY | （任意）Rails POST 用 Bearer. 未設定時は **CONTENT_SOURCE_API_KEY** を使用 |
 | DATABASE_URL | PostgreSQL 接続文字列 |
 | REDIS_URL | Celery ブローカー用 Redis |
-| OPENAI_API_KEY | 分析ナラティブ（未設定時はプレースホルダー）・**問題生成（実質必須）** |
+| OPENAI_API_KEY | **問題生成**（実質必須）および分析ナラティブのフォールバック. 分析の優先キーは **ANALYSIS_OPENAI_API_KEY**（解決順は `app/services/analysis/report_generator.py` 参照） |
 | GENERATION_OPENAI_API_KEY | （任意）問題生成専用キー. 未設定時は `OPENAI_API_KEY` を使用 |
-| ANALYSIS_OPENAI_API_KEY | （任意）分析レポート専用キー. 未設定時は `OPENAI_API_KEY` を使用 |
-| GENERATION_PROMPTS_DIR | （任意）プロンプト .txt ディレクトリ. 未指定時はリポジトリの `prompts/completed`（`.env.example` に無くても既定で動く） |
+| ANALYSIS_OPENAI_API_KEY | （任意）分析レポート専用キー. 未設定時はコード上のフォールバックで `OPENAI_API_KEY` 等を使用 |
+| GENERATION_PROMPTS_DIR | （任意）プロンプト .txt ディレクトリ. 未指定時はリポジトリの `prompts/completed` |
 | AZURE_SPEECH_KEY / AZURE_SPEECH_REGION | （任意）Listening 音声合成 |
 | AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_BUCKET, S3_REGION | （任意）音声などの S3 アップロード |
 | S3_MOCK_AUDIO_PREFIX | （任意）S3 上のプレフィックス. 既定 `mocks/audio` |
@@ -216,7 +217,7 @@ Listening パートの音声合成に **Azure Speech** を利用する（`app/se
 
 1. `.env` に上記を設定し, PostgreSQL と Redis を起動する.
 2. API: `uvicorn app.main:app --reload`
-3. ワーカー: `celery -A app.workers.celery_app worker --loglevel=info`（分析タスクと生成タスクの両方が含まれる）
+3. ワーカー（**問題生成のみ**）: `celery -A app.workers.celery_app worker --loglevel=info`（`include` は `generation_tasks` のみ. **分析レポートは API プロセス内で同期実行**）
 
 起動時 `init_db()` で SQLAlchemy 登録モデルに対応するテーブル（**analysis_jobs**, **generation_jobs**, mocks / exercises 系など）が存在しなければ作成される.
 
@@ -296,9 +297,9 @@ curl -sS -X POST "$BASE_URL/api/v1/import/full_mock" \
   --data-binary "@/絶対パス/full_parts_FM.json"
 ```
 
-#### SM（short_mock）
+#### SM（import/diagnostics）
 ```bash
-curl -sS -X POST "$BASE_URL/api/v1/import/short_mock" \
+curl -sS -X POST "$BASE_URL/api/v1/import/diagnostics" \
   -H "Authorization: Bearer $CONTENT_SOURCE_API_KEY" \
   -H "Content-Type: application/json" \
   --data-binary "@/絶対パス/full_parts_SM.json"
@@ -330,13 +331,13 @@ python scripts/hand_made.py --api-key "$CONTENT_SOURCE_API_KEY" import-full-mock
 python scripts/hand_made.py --api-key "$CONTENT_SOURCE_API_KEY" import-full-mock "hand_made/Full_Mock_02"
 ```
 
-SM（short_mock）:
+SM（import/diagnostics）:
 ```bash
-python scripts/hand_made.py --api-key "$CONTENT_SOURCE_API_KEY" import-short-mock
+python scripts/hand_made.py --api-key "$CONTENT_SOURCE_API_KEY" import-diagnostics
 ```
 `Short_Mock_02` なども同様に `set_dir` を指定:
 ```bash
-python scripts/hand_made.py --api-key "$CONTENT_SOURCE_API_KEY" import-short-mock "hand_made/Short_Mock_02"
+python scripts/hand_made.py --api-key "$CONTENT_SOURCE_API_KEY" import-diagnostics "hand_made/Short_Mock_02"
 ```
 
 P（practice）: ファイル指定
@@ -362,7 +363,9 @@ curl -sS "$BASE_URL/api/v1/exercises/$EXERCISE_ID" -H "X-Api-Key: $CONTENT_SOURC
 - `curl -d @file.json` で `No such file` / `option -d: error encountered when reading a file` になる場合は, **パスが存在しない**ため, `--data-binary "@/絶対パス/...json"` を使う.
 - S3 URL は Azure Speech + S3 が設定されているときのみ付与される（未設定なら URL が入らない/空になりうる）.
 
-### 4) 分析レポート（Rails → job投入 → ポーリング）
+### 4) 分析レポート（Rails → 同期 POST → Rails へ POST 返却）
+
+`analysis_full_payload.json` / `analysis_short_payload.json` をそのまま使える（**`attempt_id` は不要**）.
 
 #### Full
 ```bash
@@ -372,27 +375,29 @@ curl -sS -X POST "$BASE_URL/api/v1/analysis/jobs" \
   -d @analysis_full_payload.json
 ```
 
-#### Short
+#### Short（同一エンドポイント. `parts_accuracy` が Short 用問題数の JSON）
 ```bash
-curl -sS -X POST "$BASE_URL/api/v1/analysis/short/jobs" \
+curl -sS -X POST "$BASE_URL/api/v1/analysis/jobs" \
   -H "Authorization: Bearer $ANALYSIS_API_KEY" \
   -H "Content-Type: application/json" \
   -d @analysis_short_payload.json
 ```
 
-結果取得:
-```bash
-curl -sS "$BASE_URL/api/v1/analysis/jobs/$JOB_ID" -H "X-Api-Key: $ANALYSIS_API_KEY"
-```
+Rails 側受け口（FastAPI → Rails）: **`POST $RAILS_API_BASE_URL/api/v1/analysis_reports`**（本文: `job_id`, `exam_type`, `scores`（`max` なし）, `narratives`）. **`RAILS_API_BASE_URL` 未設定**のときは POST は行われない.
 
-### 5) 取捨選択（今回見えたエラーの扱い）
+同期処理のため GPT 含め**1リクエストが数秒〜数十秒**かかりうる. リバースプロキシやロードバランサの**タイムアウト**が短いと **504** などになることがある.
+
+### 5) 取捨選択（よくあるエラー）
 
 - `option -d: error encountered when reading a file`
   - 原因: curl から参照している JSON ファイルが見つからない（パス/存在確認ミス）
   - 対処: `--data-binary "@/絶対パス/...json"` に統一
-- `run_analysis_report() got an unexpected keyword argument 'output_root'`
-  - 原因: Celery に残っている古い/不整合なタスク引数により worker が落ちる（API/worker のバージョン不一致や, 以前に投入されたキューの残骸の可能性）
-  - 対処: 本番では **API/worker を同じコードで揃えて再起動し, 新規に analysis を投入し直す**（古いジョブを再処理しない）
+- 分析が **500** になる
+  - 原因: スコア計算・OpenAI・DB 更新などの例外（レスポンスの `errors` を確認）
+  - 対処: `DATABASE_URL`・`ANALYSIS_OPENAI_API_KEY` / `OPENAI_API_KEY`・ログを確認
+- Rails へ結果が届かないが FastAPI は **200**
+  - 原因: `RAILS_API_BASE_URL` 未設定, または Rails 側 POST が失敗（FastAPI は警告ログのみで 200 を返しうる）
+  - 対処: 環境変数と Rails 側の受け口・認証を確認
 
 ---
 

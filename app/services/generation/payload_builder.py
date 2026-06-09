@@ -2,12 +2,19 @@
 
 from typing import Any, Dict, List, Literal, Optional
 
+from app.services.generation.reading_content import (
+    reject_reading_question_markers_not_in_passage,
+    reject_reading_question_text_if_contains_inline,
+)
+
 # scripts / conversation_audio_url の格納先ポリシー.
 # "questions"     : questions[].scripts + questions[].conversation_audio_url に入れる (現行 Rails 方針)
 # "question_sets" : question_sets[].scripts + question_sets[].conversation_audio_url に入れる
 # "both"          : 両方に入れる (移行期間用)
 ScriptPlacement = Literal["questions", "question_sets", "both"]
-SCRIPT_PLACEMENT: ScriptPlacement = "questions"
+# Listening B/C は「会話音声を question_set 側に置く」実装が多いため,
+# questions 側にも残しつつ question_sets 側にも付与する.
+SCRIPT_PLACEMENT: ScriptPlacement = "both"
 
 
 def build_listening_part_for_api(
@@ -21,7 +28,8 @@ def build_listening_part_for_api(
     """
     Listening 1 パート分を API 用 question_sets に変換.
     audio_url_map: 分割時は part_type:block_start:passage, part_type:idx:question. 非分割時は part_type:idx.
-    block_starts_per_part: 各 part のブロック先頭 item 番号のリスト. 本文 URL 解決に使用.
+    block_starts_per_part: 各 part のブロック先頭 item 番号のリスト. 同一ブロックの items は
+      1 つの question_set にまとめられる（Listening B/C の「1会話+4問」形式に対応）.
     script_placement: None のときはモジュール定数 SCRIPT_PLACEMENT を使用.
     """
     placement: ScriptPlacement = script_placement if script_placement is not None else SCRIPT_PLACEMENT
@@ -30,58 +38,73 @@ def build_listening_part_for_api(
     if not isinstance(items, list) or not items:
         raise ValueError(f"Listening part JSON の items が不正です: {part_type}")
 
-    question_sets: List[Dict[str, Any]] = []
+    # フェーズ1: block_start が同じ items を同一グループにまとめる.
+    # block_starts_per_part が未指定の場合は各 item が独立ブロック（従来動作と同じ）.
+    grouped: Dict[int, List[tuple]] = {}
     for idx, item in enumerate(items, start=1):
         block_starts = (block_starts_per_part or {}).get(part_type)
         if block_starts:
             block_start = max((b for b in block_starts if b <= idx), default=idx)
         else:
             block_start = idx
+        grouped.setdefault(block_start, []).append((idx, item))
 
+    # フェーズ2: ブロックごとに 1 つの question_set を生成し, 複数問をまとめる.
+    question_sets: List[Dict[str, Any]] = []
+    for qs_order, (block_start, block_items) in enumerate(grouped.items(), start=1):
         passage_url = None
         if audio_url_map:
             passage_url = audio_url_map.get(f"{part_type}:{block_start}:passage")
             if passage_url is None:
-                passage_url = audio_url_map.get(f"{part_type}:{idx}")
-        question_url = (audio_url_map or {}).get(f"{part_type}:{idx}:question")
+                passage_url = audio_url_map.get(f"{part_type}:{block_start}")
 
-        content = item.get("content")
-        if not isinstance(content, dict) or content.get("listening_script") is None:
-            raise ValueError(
-                f"Listening item[{idx}] ({part_type}): content.listening_script is required"
-            )
-        scripts = content["listening_script"]
-
-        # placement に応じて各フィールドの配置先を決める.
-        q_conv_audio = passage_url if placement in ("questions", "both") else None
-        q_scripts = scripts if placement in ("questions", "both") else None
+        # question_set レベルの placement 用フィールド.
+        # qs_scripts にはブロック先頭 item のスクリプトを代表値として使う.
+        first_item = block_items[0][1]
+        first_scripts = (first_item.get("content") or {}).get("listening_script")
         qs_conv_audio = passage_url if placement in ("question_sets", "both") else None
-        qs_scripts = scripts if placement in ("question_sets", "both") else None
+        qs_scripts = first_scripts if placement in ("question_sets", "both") else None
 
-        q = {
-            "display_order": 1,
-            "question_text": item["question_text"],
-            "question_audio_url": question_url,
-            "conversation_audio_url": q_conv_audio,
-            "choice_a": item["choice_a"],
-            "choice_b": item["choice_b"],
-            "choice_c": item["choice_c"],
-            "choice_d": item["choice_d"],
-            "correct_choice": item["correct_choice"],
-            "explanation": item.get("explanation"),
-            "tag": item.get("tag"),
-            "scripts": q_scripts,
-            "wrong_reason_a": item.get("wrong_reason_a"),
-            "wrong_reason_b": item.get("wrong_reason_b"),
-            "wrong_reason_c": item.get("wrong_reason_c"),
-            "wrong_reason_d": item.get("wrong_reason_d"),
-        }
+        questions: List[Dict[str, Any]] = []
+        for q_order, (idx, item) in enumerate(block_items, start=1):
+            question_url = (audio_url_map or {}).get(f"{part_type}:{idx}:question")
+
+            content = item.get("content")
+            if not isinstance(content, dict) or content.get("listening_script") is None:
+                raise ValueError(
+                    f"Listening item[{idx}] ({part_type}): content.listening_script is required"
+                )
+            scripts = content["listening_script"]
+
+            # placement に応じて各フィールドの配置先を決める.
+            q_conv_audio = passage_url if placement in ("questions", "both") else None
+            q_scripts = scripts if placement in ("questions", "both") else None
+
+            questions.append({
+                "display_order": q_order,
+                "question_text": item["question_text"],
+                "question_audio_url": question_url,
+                "conversation_audio_url": q_conv_audio,
+                "choice_a": item["choice_a"],
+                "choice_b": item["choice_b"],
+                "choice_c": item["choice_c"],
+                "choice_d": item["choice_d"],
+                "correct_choice": item["correct_choice"],
+                "explanation": item.get("explanation"),
+                "tag": item.get("tag"),
+                "scripts": q_scripts,
+                "wrong_reason_a": item.get("wrong_reason_a"),
+                "wrong_reason_b": item.get("wrong_reason_b"),
+                "wrong_reason_c": item.get("wrong_reason_c"),
+                "wrong_reason_d": item.get("wrong_reason_d"),
+            })
+
         question_sets.append({
-            "display_order": idx,
+            "display_order": qs_order,
             "passage": None,
             "conversation_audio_url": qs_conv_audio,
             "scripts": qs_scripts,
-            "questions": [q],
+            "questions": questions,
         })
 
     return {
@@ -162,7 +185,12 @@ def build_reading_section_for_api(
                 }
             )
         question_sets.append(
-            {"display_order": i, "passage": passage["passage"], "questions": qs}
+            {
+                "display_order": i,
+                "passage": passage["passage"],
+                "passage_theme": passage.get("passage_theme"),
+                "questions": qs,
+            }
         )
 
     return {
@@ -276,7 +304,22 @@ def build_exercise_payload(
             if not isinstance(qs_src, list) or not qs_src:
                 raise ValueError(f"Reading passage[{i}] の questions が不正です")
             qs = []
+            passage_body = passage.get("passage") if isinstance(passage, dict) else None
             for j, qsrc in enumerate(qs_src, start=1):
+                qt = qsrc.get("question_text") if isinstance(qsrc, dict) else None
+                if isinstance(qt, str):
+                    reject_reading_question_text_if_contains_inline(
+                        qt,
+                        passage_index=i,
+                        question_index=j,
+                    )
+                    if isinstance(passage_body, str):
+                        reject_reading_question_markers_not_in_passage(
+                            passage_body,
+                            qt,
+                            passage_index=i,
+                            question_index=j,
+                        )
                 qs.append({
                     "display_order": j,
                     "question_text": qsrc["question_text"],
@@ -295,6 +338,7 @@ def build_exercise_payload(
             question_sets.append({
                 "display_order": i,
                 "passage": passage["passage"],
+                "passage_theme": passage.get("passage_theme"),
                 "audio_url": None,
                 "questions": qs,
             })

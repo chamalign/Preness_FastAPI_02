@@ -37,18 +37,16 @@ def test_full_generation_sets_running_then_completed(monkeypatch) -> None:
             "FM03_Listening_Part_C",
             "FM04_Grammar_Part_A",
             "FM05_Grammar_Part_B",
-            "FM06_Reading_Long3",
-            "FM06_Reading_Short2",
+            "FM06_Reading",
         ],
     )
     monkeypatch.setattr("app.workers.generation_tasks.load_prompt", lambda stem: f"prompt:{stem}")
     monkeypatch.setattr("app.workers.generation_tasks.generate_problem_json", lambda prompt: {})
 
-    monkeypatch.setattr("app.workers.generation_tasks.merge_fm06", lambda long3, short2: {"passages": []})
     monkeypatch.setattr("app.workers.generation_tasks.merge_full_mock_parts", lambda *args: {})
     monkeypatch.setattr(
         "app.workers.generation_tasks.process_mock_from_full_parts",
-        lambda full_parts, title, audio_path_id: {"mock_id": 123},
+        lambda full_parts, title, audio_path_id, expected_reading_passages=5: {"mock_id": 123},
     )
 
     _invoke_celery_task(run_full_mock_generation, title="T", job_id=job_id)

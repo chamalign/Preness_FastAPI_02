@@ -32,7 +32,6 @@ def create_app() -> FastAPI:
     # DB: analysis_jobs テーブルを作成
     init_db()
 
-    # v1 routers
     app.include_router(mocks.router, prefix="/api/v1", tags=["mocks"])
     app.include_router(exercises.router, prefix="/api/v1", tags=["exercises"])
     app.include_router(analysis.router, prefix="/api/v1", tags=["analysis"])
